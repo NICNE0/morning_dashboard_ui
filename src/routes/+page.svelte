@@ -64,6 +64,21 @@
 	let searchQuery = '';
 	let filteredBookmarksByCategory: Record<string, Site[]> = {};
 	
+	// Tag filtering system
+	interface TagFilter {
+		id: string;
+		tag: Tag;
+		operator: 'AND' | 'OR';
+		exclude: boolean;
+	}
+	
+	let tagFilters: TagFilter[] = [];
+	let showTagFiltering = false;
+	let availableTagsForFilter: Tag[] = [];
+	let selectedTagForFilter: string = '';
+	let nextOperator: 'AND' | 'OR' = 'AND';
+	let excludeNext = false;
+	
 	// Toast notifications
 	let toastMessage = '';
 	let toastType: 'success' | 'error' = 'success';
@@ -139,30 +154,127 @@
 	}
 	
 	function filterBookmarks(query: string) {
-		if (!query.trim()) {
-			filteredBookmarksByCategory = bookmarksByCategory;
+		let filtered: Record<string, Site[]> = {};
+		
+		// Start with all bookmarks or text-filtered bookmarks
+		if (!query.trim() && tagFilters.length === 0) {
+			filtered = bookmarksByCategory;
+		} else {
+			const lowercaseQuery = query.toLowerCase();
+			
+			Object.entries(bookmarksByCategory).forEach(([categoryName, sites]) => {
+				let matchingSites = sites;
+				
+				// Apply text search if query exists
+				if (query.trim()) {
+					matchingSites = sites.filter(site => 
+						site.name.toLowerCase().includes(lowercaseQuery) ||
+						site.description?.toLowerCase().includes(lowercaseQuery) ||
+						site.url.toLowerCase().includes(lowercaseQuery) ||
+						categoryName.toLowerCase().includes(lowercaseQuery) ||
+						site.language?.name.toLowerCase().includes(lowercaseQuery) ||
+						site.tags.some(tag => tag.name.toLowerCase().includes(lowercaseQuery))
+					);
+				}
+				
+				// Apply tag filters
+				if (tagFilters.length > 0) {
+					matchingSites = matchingSites.filter(site => {
+						return evaluateTagFilters(site, tagFilters);
+					});
+				}
+				
+				if (matchingSites.length > 0) {
+					filtered[categoryName] = matchingSites;
+				}
+			});
+		}
+		
+		filteredBookmarksByCategory = filtered;
+	}
+	
+	function evaluateTagFilters(site: Site, filters: TagFilter[]): boolean {
+		if (filters.length === 0) return true;
+		
+		let result = true;
+		
+		for (let i = 0; i < filters.length; i++) {
+			const filter = filters[i];
+			const hasTag = site.tags.some(tag => tag.id === filter.tag.id);
+			const condition = filter.exclude ? !hasTag : hasTag;
+			
+			if (i === 0) {
+				// First filter - no operator needed
+				result = condition;
+			} else {
+				// Use the operator from the current filter (which represents the operator before this filter)
+				if (filter.operator === 'AND') {
+					result = result && condition;
+				} else {
+					result = result || condition;
+				}
+			}
+		}
+		
+		return result;
+	}
+	
+	function addTagFilter() {
+		console.log('addTagFilter called', { selectedTagForFilter, nextOperator, excludeNext });
+		
+		if (!selectedTagForFilter) {
+			console.log('No tag selected');
 			return;
 		}
 		
-		const filtered: Record<string, Site[]> = {};
-		const lowercaseQuery = query.toLowerCase();
+		const tag = tags.find(t => t.id.toString() === selectedTagForFilter);
+		console.log('Found tag:', tag);
 		
-		Object.entries(bookmarksByCategory).forEach(([categoryName, sites]) => {
-			const matchingSites = sites.filter(site => 
-				site.name.toLowerCase().includes(lowercaseQuery) ||
-				site.description?.toLowerCase().includes(lowercaseQuery) ||
-				site.url.toLowerCase().includes(lowercaseQuery) ||
-				categoryName.toLowerCase().includes(lowercaseQuery) ||
-				site.language?.name.toLowerCase().includes(lowercaseQuery) ||
-				site.tags.some(tag => tag.name.toLowerCase().includes(lowercaseQuery))
-			);
-			
-			if (matchingSites.length > 0) {
-				filtered[categoryName] = matchingSites;
-			}
-		});
+		if (!tag) {
+			console.log('Tag not found in tags array');
+			return;
+		}
 		
-		filteredBookmarksByCategory = filtered;
+		const newFilter: TagFilter = {
+			id: Date.now().toString(),
+			tag,
+			operator: nextOperator, // This operator will be used BEFORE this filter
+			exclude: excludeNext
+		};
+		
+		console.log('Creating new filter:', newFilter);
+		
+		tagFilters = [...tagFilters, newFilter];
+		console.log('Updated tagFilters:', tagFilters);
+		
+		// Reset form
+		selectedTagForFilter = '';
+		nextOperator = 'AND';
+		excludeNext = false;
+		
+		// Refresh available tags and apply filters
+		updateAvailableTagsForFilter();
+		filterBookmarks(searchQuery);
+	}
+	
+	function removeTagFilter(filterId: string) {
+		tagFilters = tagFilters.filter(f => f.id !== filterId);
+		updateAvailableTagsForFilter();
+		filterBookmarks(searchQuery);
+	}
+	
+	function clearAllTagFilters() {
+		tagFilters = [];
+		updateAvailableTagsForFilter();
+		filterBookmarks(searchQuery);
+	}
+	
+	function updateAvailableTagsForFilter() {
+		const usedTagIds = tagFilters.map(f => f.tag.id);
+		console.log('Used tag IDs:', usedTagIds);
+		console.log('All tags:', tags);
+		availableTagsForFilter = tags.filter(tag => !usedTagIds.includes(tag.id));
+		console.log('Available tags for filter:', availableTagsForFilter);
 	}
 	
 	// React to search query changes
@@ -294,8 +406,9 @@
 			languages = await languagesResponse.json();
 			tags = await tagsResponse.json();
 			
-			// Initialize filtered bookmarks
+			// Initialize filtered bookmarks and available tags
 			filteredBookmarksByCategory = bookmarksByCategory;
+			updateAvailableTagsForFilter();
 			
 			loading = false;
 		} catch (err) {
@@ -458,6 +571,9 @@
 			{/if}
 		</div>
 		<div class="actions">
+			<button on:click={() => showTagFiltering = !showTagFiltering} class="btn btn-filter" class:active={showTagFiltering}>
+				🏷️ Tag Filters {tagFilters.length > 0 ? `(${tagFilters.length})` : ''}
+			</button>
 			<button on:click={() => showCategoryForm = !showCategoryForm} class="btn btn-secondary">
 				✨ Add Category
 			</button>
@@ -466,6 +582,116 @@
 			</button>
 		</div>
 	</div>
+
+	<!-- Tag Filtering Section -->
+	{#if showTagFiltering}
+		<div class="tag-filtering-container">
+			<div class="tag-filtering-header">
+				<h3>🏷️ Advanced Tag Filtering</h3>
+				{#if tagFilters.length > 0}
+					<button class="clear-filters-btn" on:click={clearAllTagFilters}>Clear All</button>
+				{/if}
+			</div>
+			
+			<!-- Active Filters Display -->
+			{#if tagFilters.length > 0}
+				<div class="active-filters">
+					<div class="filter-chain">
+						{#each tagFilters as filter, index}
+							<div class="filter-item">
+								{#if index > 0}
+									<span class="filter-operator operator-{filter.operator.toLowerCase()}">
+										{filter.operator}
+									</span>
+								{/if}
+								<div class="filter-tag" class:exclude={filter.exclude}>
+									{#if filter.exclude}
+										<span class="exclude-indicator">NOT</span>
+									{/if}
+									<span class="tag-name">{filter.tag.name}</span>
+									<button class="remove-filter" on:click={() => removeTagFilter(filter.id)}>×</button>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+			
+			<!-- Add New Filter -->
+			<div class="add-filter-section">
+				<div class="filter-controls">
+					<div class="tag-selector">
+						<select 
+							bind:value={selectedTagForFilter} 
+							class="tag-select"
+							on:change={() => console.log('Select changed:', selectedTagForFilter)}
+						>
+							<option value="">Select a tag...</option>
+							{#each availableTagsForFilter as tag}
+								<option value={tag.id.toString()}>{tag.name}</option>
+							{/each}
+						</select>
+					</div>
+					
+					{#if tagFilters.length > 0}
+						<div class="operator-selector">
+							<label class="radio-group">
+								<input type="radio" bind:group={nextOperator} value="AND" />
+								<span class="radio-label and-label">AND</span>
+							</label>
+							<label class="radio-group">
+								<input type="radio" bind:group={nextOperator} value="OR" />
+								<span class="radio-label or-label">OR</span>
+							</label>
+						</div>
+					{/if}
+					
+					<div class="exclude-option">
+						<label class="checkbox-group">
+							<input type="checkbox" bind:checked={excludeNext} />
+							<span class="checkbox-label">Exclude</span>
+						</label>
+					</div>
+					
+					<button 
+						class="add-filter-btn"
+						on:click={() => {
+							console.log('Button clicked!', { selectedTagForFilter, availableTagsForFilter });
+							addTagFilter();
+						}}
+						disabled={!selectedTagForFilter}
+					>
+						Add Filter
+					</button>
+				</div>
+				
+				{#if availableTagsForFilter.length === 0 && tags.length > 0}
+					<p class="no-more-tags">All available tags are already in use</p>
+				{/if}
+			</div>
+			
+			<!-- Filter Logic Explanation -->
+			{#if tagFilters.length > 0}
+				<div class="filter-explanation">
+					<strong>Filter Logic:</strong> 
+					<span class="logic-text">
+						Show bookmarks that 
+						{#each tagFilters as filter, index}
+							{#if index > 0}
+								<span class="logic-operator">{filter.operator.toLowerCase()}</span>
+							{/if}
+							{#if filter.exclude}
+								<span class="logic-exclude">do NOT have</span>
+							{:else}
+								<span class="logic-include">have</span>
+							{/if}
+							<span class="logic-tag">"{filter.tag.name}"</span>
+						{/each}
+					</span>
+				</div>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Toast Notification -->
 	{#if showToast}
@@ -840,10 +1066,23 @@
 			
 			{#if Object.keys(filteredBookmarksByCategory).length === 0 && !loading}
 				<div class="empty-state">
-					{#if searchQuery}
+					{#if searchQuery || tagFilters.length > 0}
 						<h3>🔍 No bookmarks found</h3>
-						<p>No bookmarks match your search for "{searchQuery}"</p>
-						<button class="btn btn-secondary" on:click={() => searchQuery = ''}>Clear search</button>
+						<p>No bookmarks match your current filters</p>
+						{#if searchQuery}
+							<p>Search: "{searchQuery}"</p>
+						{/if}
+						{#if tagFilters.length > 0}
+							<p>Tag filters: {tagFilters.length} active</p>
+						{/if}
+						<div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+							{#if searchQuery}
+								<button class="btn btn-secondary" on:click={() => searchQuery = ''}>Clear search</button>
+							{/if}
+							{#if tagFilters.length > 0}
+								<button class="btn btn-secondary" on:click={clearAllTagFilters}>Clear tag filters</button>
+							{/if}
+						</div>
 					{:else}
 						<h3>📚 No bookmarks yet</h3>
 						<p>Start building your bookmark collection!</p>
@@ -1114,6 +1353,35 @@
 	
 	.btn:hover {
 		transform: translateY(-2px);
+	}
+	
+	.btn-filter {
+		background: linear-gradient(135deg, #9b59b6, #8e44ad);
+		color: white;
+		position: relative;
+	}
+	
+	.btn-filter.active {
+		background: linear-gradient(135deg, #e74c3c, #c0392b);
+		box-shadow: 0 0 20px rgba(231, 76, 60, 0.4);
+	}
+	
+	.btn-filter.active::after {
+		content: '';
+		position: absolute;
+		top: -2px;
+		left: -2px;
+		right: -2px;
+		bottom: -2px;
+		background: linear-gradient(135deg, #e74c3c, #c0392b);
+		border-radius: 14px;
+		z-index: -1;
+		animation: pulse 2s infinite;
+	}
+	
+	@keyframes pulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.7; }
 	}
 	
 	.form-container {
@@ -1689,6 +1957,310 @@
     text-align:start;
 	}
 
+	/* Tag Filtering Styles */
+	.tag-filtering-container {
+		background: rgba(25, 25, 35, 0.9);
+		backdrop-filter: blur(20px);
+		border: 1px solid rgba(155, 89, 182, 0.3);
+		border-radius: 16px;
+		padding: 2rem;
+		margin-bottom: 2rem;
+		box-shadow: 0 10px 40px rgba(155, 89, 182, 0.2);
+		animation: slideIn 0.3s ease-out;
+	}
+	
+	.tag-filtering-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1.5rem;
+	}
+	
+	.tag-filtering-header h3 {
+		margin: 0;
+		color: #9b59b6;
+		font-size: 1.3rem;
+		font-weight: 600;
+	}
+	
+	.clear-filters-btn {
+		background: rgba(231, 76, 60, 0.2);
+		border: 1px solid rgba(231, 76, 60, 0.4);
+		color: #e74c3c;
+		padding: 0.5rem 1rem;
+		border-radius: 8px;
+		cursor: pointer;
+		font-size: 0.9rem;
+		transition: all 0.3s ease;
+	}
+	
+	.clear-filters-btn:hover {
+		background: rgba(231, 76, 60, 0.3);
+		transform: scale(1.05);
+	}
+	
+	.active-filters {
+		margin-bottom: 1.5rem;
+	}
+	
+	.filter-chain {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 1rem;
+		background: rgba(0, 0, 0, 0.3);
+		border-radius: 12px;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
+	
+	.filter-item {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	
+	.filter-operator {
+		font-size: 0.8rem;
+		font-weight: 700;
+		padding: 0.3rem 0.6rem;
+		border-radius: 6px;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+	
+	.operator-and {
+		background: rgba(52, 152, 219, 0.3);
+		color: #3498db;
+		border: 1px solid rgba(52, 152, 219, 0.5);
+	}
+	
+	.operator-or {
+		background: rgba(230, 126, 34, 0.3);
+		color: #e67e22;
+		border: 1px solid rgba(230, 126, 34, 0.5);
+	}
+	
+	.filter-tag {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		background: rgba(78, 205, 196, 0.2);
+		border: 1px solid rgba(78, 205, 196, 0.4);
+		padding: 0.4rem 0.8rem;
+		border-radius: 12px;
+		color: #4ecdc4;
+		font-size: 0.9rem;
+		font-weight: 500;
+		position: relative;
+	}
+	
+	.filter-tag.exclude {
+		background: rgba(231, 76, 60, 0.2);
+		border-color: rgba(231, 76, 60, 0.4);
+		color: #e74c3c;
+	}
+	
+	.exclude-indicator {
+		font-size: 0.7rem;
+		font-weight: 700;
+		opacity: 0.8;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+	
+	.tag-name {
+		font-weight: 600;
+	}
+	
+	.remove-filter {
+		background: none;
+		border: none;
+		color: inherit;
+		cursor: pointer;
+		font-size: 1rem;
+		opacity: 0.7;
+		transition: opacity 0.3s ease;
+		margin-left: 0.2rem;
+	}
+	
+	.remove-filter:hover {
+		opacity: 1;
+		transform: scale(1.2);
+	}
+	
+	.add-filter-section {
+		border-top: 1px solid rgba(255, 255, 255, 0.1);
+		padding-top: 1.5rem;
+	}
+	
+	.filter-controls {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		flex-wrap: wrap;
+		margin-bottom: 1rem;
+	}
+	
+	.tag-selector {
+		flex: 1;
+		min-width: 200px;
+	}
+	
+	.tag-select {
+		width: 100%;
+		padding: 0.7rem 1rem;
+		border-radius: 8px;
+		border: 1px solid rgba(155, 89, 182, 0.3);
+		background: rgba(255, 255, 255, 0.05);
+		color: #fff;
+		font-size: 0.95rem;
+	}
+	
+	.tag-select:focus {
+		outline: none;
+		border-color: #9b59b6;
+		box-shadow: 0 0 10px rgba(155, 89, 182, 0.3);
+	}
+	
+	.operator-selector {
+		display: flex;
+		gap: 0.5rem;
+	}
+	
+	.radio-group {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		cursor: pointer;
+	}
+	
+	.radio-group input[type="radio"] {
+		accent-color: #9b59b6;
+	}
+	
+	.radio-label {
+		font-size: 0.9rem;
+		font-weight: 600;
+		padding: 0.3rem 0.6rem;
+		border-radius: 6px;
+		transition: all 0.3s ease;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+	
+	.and-label {
+		color: #3498db;
+	}
+	
+	.or-label {
+		color: #e67e22;
+	}
+	
+	.radio-group:has(input:checked) .radio-label {
+		background: rgba(155, 89, 182, 0.3);
+		color: #9b59b6;
+	}
+	
+	.exclude-option {
+		display: flex;
+		align-items: center;
+	}
+	
+	.checkbox-group {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		cursor: pointer;
+	}
+	
+	.checkbox-group input[type="checkbox"] {
+		accent-color: #e74c3c;
+		width: 16px;
+		height: 16px;
+	}
+	
+	.checkbox-label {
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: #e74c3c;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+	
+	.add-filter-btn {
+		background: linear-gradient(135deg, #9b59b6, #8e44ad);
+		color: white;
+		border: none;
+		padding: 0.7rem 1.5rem;
+		border-radius: 8px;
+		cursor: pointer;
+		font-weight: 600;
+		font-size: 0.9rem;
+		transition: all 0.3s ease;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+	
+	.add-filter-btn:hover:not(:disabled) {
+		transform: translateY(-2px);
+		box-shadow: 0 5px 15px rgba(155, 89, 182, 0.4);
+	}
+	
+	.add-filter-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+		transform: none !important;
+	}
+	
+	.no-more-tags {
+		color: rgba(255, 255, 255, 0.6);
+		font-style: italic;
+		font-size: 0.9rem;
+		text-align: center;
+		margin: 0;
+	}
+	
+	.filter-explanation {
+		background: rgba(0, 0, 0, 0.3);
+		border-left: 3px solid #9b59b6;
+		padding: 1rem;
+		border-radius: 0 8px 8px 0;
+		margin-top: 1rem;
+		font-size: 0.9rem;
+		line-height: 1.5;
+	}
+	
+	.filter-explanation strong {
+		color: #9b59b6;
+	}
+	
+	.logic-text {
+		color: rgba(255, 255, 255, 0.9);
+	}
+	
+	.logic-operator {
+		font-weight: 700;
+		text-transform: uppercase;
+		margin: 0 0.3rem;
+	}
+	
+	.logic-include {
+		color: #4ecdc4;
+		font-weight: 600;
+	}
+	
+	.logic-exclude {
+		color: #e74c3c;
+		font-weight: 600;
+	}
+	
+	.logic-tag {
+		color: #f39c12;
+		font-weight: 600;
+		font-style: italic;
+	}
+
 	/* Responsive design */
 	@media (max-width: 768px) {
 		main {
@@ -1733,6 +2305,26 @@
 		
 		.bookmark-actions {
 			opacity: 1;
+		}
+		
+		.tag-filtering-container {
+			padding: 1.5rem;
+		}
+		
+		.filter-controls {
+			flex-direction: column;
+			gap: 1rem;
+		}
+		
+		.filter-chain {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+		
+		.filter-item {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0.5rem;
 		}
 	}
 </style>
