@@ -101,6 +101,32 @@
 	let editShowTagSuggestions = false;
 	let editFilteredTags: Tag[] = [];
 	
+	function scrollToCategory(categoryName: string) {
+		// Toggle the category if it's collapsed
+		if (collapsedCategories[categoryName]) {
+			collapsedCategories[categoryName] = false;
+			collapsedCategories = { ...collapsedCategories };
+		}
+		
+		// Scroll to the category after a brief delay to allow for expansion
+		setTimeout(() => {
+			const categoryId = `category-${categoryName.replace(/\s+/g, '-').toLowerCase()}`;
+			const element = document.getElementById(categoryId);
+			if (element) {
+				// Calculate offset to position category header slightly above middle of screen
+				const elementRect = element.getBoundingClientRect();
+				const viewportHeight = window.innerHeight;
+				const stickyHeaderHeight = 120; // Approximate height of sticky header
+				const targetPosition = window.pageYOffset + elementRect.top - (viewportHeight * 0.4) - stickyHeaderHeight;
+				
+				window.scrollTo({
+					top: targetPosition,
+					behavior: 'smooth'
+				});
+			}
+		}, 100);
+	}
+	
 	function toggleExpandAllInCategory(categoryName: string, sites: Site[]) {
 		const currentState = expandAllInCategory[categoryName] || false;
 		const newState = !currentState;
@@ -220,18 +246,13 @@
 	}
 	
 	function addTagFilter() {
-		console.log('addTagFilter called', { selectedTagForFilter, nextOperator, excludeNext });
-		
 		if (!selectedTagForFilter) {
-			console.log('No tag selected');
 			return;
 		}
 		
 		const tag = tags.find(t => t.id.toString() === selectedTagForFilter);
-		console.log('Found tag:', tag);
 		
 		if (!tag) {
-			console.log('Tag not found in tags array');
 			return;
 		}
 		
@@ -242,10 +263,7 @@
 			exclude: excludeNext
 		};
 		
-		console.log('Creating new filter:', newFilter);
-		
 		tagFilters = [...tagFilters, newFilter];
-		console.log('Updated tagFilters:', tagFilters);
 		
 		// Reset form
 		selectedTagForFilter = '';
@@ -271,10 +289,7 @@
 	
 	function updateAvailableTagsForFilter() {
 		const usedTagIds = tagFilters.map(f => f.tag.id);
-		console.log('Used tag IDs:', usedTagIds);
-		console.log('All tags:', tags);
 		availableTagsForFilter = tags.filter(tag => !usedTagIds.includes(tag.id));
-		console.log('Available tags for filter:', availableTagsForFilter);
 	}
 	
 	// React to search query changes
@@ -385,44 +400,44 @@
 	});
 
 	async function loadData() {
-    try {
-      loading = true;
-      
-      // Fetch all data in parallel
-      const [bookmarksResponse, categoriesResponse, languagesResponse, tagsResponse] = await Promise.all([
-        fetch('/api/bookmarks'),
-        fetch('/api/categories'),
-        fetch('/api/languages'),
-        fetch('/api/tags')
-      ]);
-      
-      if (!bookmarksResponse.ok) throw new Error('Failed to fetch bookmarks');
-      if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
-      if (!languagesResponse.ok) throw new Error('Failed to fetch languages');
-      if (!tagsResponse.ok) throw new Error('Failed to fetch tags');
-      
-      bookmarksByCategory = await bookmarksResponse.json();
-      categories = await categoriesResponse.json();
-      languages = await languagesResponse.json();
-      tags = await tagsResponse.json();
-      
-      // Initialize collapsed state - collapse all except first two categories
-      const categoryNames = Object.keys(bookmarksByCategory);
-      collapsedCategories = {};
-      categoryNames.forEach((name, index) => {
-        collapsedCategories[name] = index >= 2; // Collapse categories after the first two
-      });
-      
-      // Initialize filtered bookmarks and available tags
-      filteredBookmarksByCategory = bookmarksByCategory;
-      updateAvailableTagsForFilter();
-      
-      loading = false;
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Unknown error';
-      loading = false;
-    }
-  }
+		try {
+			loading = true;
+			
+			// Fetch all data in parallel
+			const [bookmarksResponse, categoriesResponse, languagesResponse, tagsResponse] = await Promise.all([
+				fetch('/api/bookmarks'),
+				fetch('/api/categories'),
+				fetch('/api/languages'),
+				fetch('/api/tags')
+			]);
+			
+			if (!bookmarksResponse.ok) throw new Error('Failed to fetch bookmarks');
+			if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
+			if (!languagesResponse.ok) throw new Error('Failed to fetch languages');
+			if (!tagsResponse.ok) throw new Error('Failed to fetch tags');
+			
+			bookmarksByCategory = await bookmarksResponse.json();
+			categories = await categoriesResponse.json();
+			languages = await languagesResponse.json();
+			tags = await tagsResponse.json();
+			
+			// Initialize collapsed state - collapse all except first two categories
+			const categoryNames = Object.keys(bookmarksByCategory);
+			collapsedCategories = {};
+			categoryNames.forEach((name, index) => {
+				collapsedCategories[name] = index >= 2; // Collapse categories after the first two
+			});
+			
+			// Initialize filtered bookmarks and available tags
+			filteredBookmarksByCategory = bookmarksByCategory;
+			updateAvailableTagsForFilter();
+			
+			loading = false;
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Unknown error';
+			loading = false;
+		}
+	}
 
 	async function createCategory() {
 		if (!categoryForm.name.trim()) return;
@@ -557,148 +572,146 @@
 	<title>Bookmark Manager</title>
 </svelte:head>
 
-<main>
+<main class="main-layout">
 	<header>
 		<h1><span class="title-icon">📚</span> <span class="title-text">Bookmark Manager</span></h1>
 		<div class="divider"></div>
 	</header>
 
-	<!-- Search and Actions Bar -->
-	<div class="search-actions-container">
-		<div class="search-input-wrapper">
-			<span class="search-icon">🔍</span>
-			<input
-				type="text"
-				bind:value={searchQuery}
-				placeholder="Search bookmarks..."
-				class="search-input"
-			/>
-			{#if searchQuery}
-				<button class="clear-search" on:click={() => searchQuery = ''}>✕</button>
-			{/if}
-		</div>
-		<div class="actions">
-			<button on:click={() => showTagFiltering = !showTagFiltering} class="btn btn-filter" class:active={showTagFiltering}>
-				🏷️ Tag Filters {tagFilters.length > 0 ? `(${tagFilters.length})` : ''}
-			</button>
-			<button on:click={() => showCategoryForm = !showCategoryForm} class="btn btn-secondary">
-				✨ Add Category
-			</button>
-			<button on:click={() => showSiteForm = !showSiteForm} class="btn btn-primary">
-				🔖 Add Bookmark
-			</button>
-		</div>
-	</div>
-
-	<!-- Tag Filtering Section -->
-	{#if showTagFiltering}
-		<div class="tag-filtering-container">
-			<div class="tag-filtering-header">
-				<h3>🏷️ Advanced Tag Filtering</h3>
-				{#if tagFilters.length > 0}
-					<button class="clear-filters-btn" on:click={clearAllTagFilters}>Clear All</button>
+	<!-- Sticky Search and Actions Bar -->
+	<div class="sticky-search-container">
+		<div class="search-actions-container">
+			<div class="search-input-wrapper">
+				<span class="search-icon">🔍</span>
+				<input
+					type="text"
+					bind:value={searchQuery}
+					placeholder="Search bookmarks..."
+					class="search-input"
+				/>
+				{#if searchQuery}
+					<button class="clear-search" on:click={() => searchQuery = ''}>✕</button>
 				{/if}
 			</div>
-			
-			<!-- Active Filters Display -->
-			{#if tagFilters.length > 0}
-				<div class="active-filters">
-					<div class="filter-chain">
-						{#each tagFilters as filter, index}
-							<div class="filter-item">
-								{#if index > 0}
-									<span class="filter-operator operator-{filter.operator.toLowerCase()}">
-										{filter.operator}
-									</span>
-								{/if}
-								<div class="filter-tag" class:exclude={filter.exclude}>
-									{#if filter.exclude}
-										<span class="exclude-indicator">NOT</span>
-									{/if}
-									<span class="tag-name">{filter.tag.name}</span>
-									<button class="remove-filter" on:click={() => removeTagFilter(filter.id)}>×</button>
-								</div>
-							</div>
-						{/each}
-					</div>
-				</div>
-			{/if}
-			
-			<!-- Add New Filter -->
-			<div class="add-filter-section">
-				<div class="filter-controls">
-					<div class="tag-selector">
-						<select 
-							bind:value={selectedTagForFilter} 
-							class="tag-select"
-							on:change={() => console.log('Select changed:', selectedTagForFilter)}
-						>
-							<option value="">Select a tag...</option>
-							{#each availableTagsForFilter as tag}
-								<option value={tag.id.toString()}>{tag.name}</option>
-							{/each}
-						</select>
-					</div>
-					
+			<div class="actions">
+				<button on:click={() => showTagFiltering = !showTagFiltering} class="btn btn-filter" class:active={showTagFiltering}>
+					🏷️ Tag Filters {tagFilters.length > 0 ? `(${tagFilters.length})` : ''}
+				</button>
+				<button on:click={() => showCategoryForm = !showCategoryForm} class="btn btn-secondary">
+					✨ Add Category
+				</button>
+				<button on:click={() => showSiteForm = !showSiteForm} class="btn btn-primary">
+					🔖 Add Bookmark
+				</button>
+			</div>
+		</div>
+
+		<!-- Tag Filtering Section -->
+		{#if showTagFiltering}
+			<div class="tag-filtering-container">
+				<div class="tag-filtering-header">
+					<h3>🏷️ Advanced Tag Filtering</h3>
 					{#if tagFilters.length > 0}
-						<div class="operator-selector">
-							<label class="radio-group">
-								<input type="radio" bind:group={nextOperator} value="AND" />
-								<span class="radio-label and-label">AND</span>
-							</label>
-							<label class="radio-group">
-								<input type="radio" bind:group={nextOperator} value="OR" />
-								<span class="radio-label or-label">OR</span>
-							</label>
-						</div>
+						<button class="clear-filters-btn" on:click={clearAllTagFilters}>Clear All</button>
 					{/if}
-					
-					<div class="exclude-option">
-						<label class="checkbox-group">
-							<input type="checkbox" bind:checked={excludeNext} />
-							<span class="checkbox-label">Exclude</span>
-						</label>
-					</div>
-					
-					<button 
-						class="add-filter-btn"
-						on:click={() => {
-							console.log('Button clicked!', { selectedTagForFilter, availableTagsForFilter });
-							addTagFilter();
-						}}
-						disabled={!selectedTagForFilter}
-					>
-						Add Filter
-					</button>
 				</div>
 				
-				{#if availableTagsForFilter.length === 0 && tags.length > 0}
-					<p class="no-more-tags">All available tags are already in use</p>
+				<!-- Active Filters Display -->
+				{#if tagFilters.length > 0}
+					<div class="active-filters">
+						<div class="filter-chain">
+							{#each tagFilters as filter, index}
+								<div class="filter-item">
+									{#if index > 0}
+										<span class="filter-operator operator-{filter.operator.toLowerCase()}">
+											{filter.operator}
+										</span>
+									{/if}
+									<div class="filter-tag" class:exclude={filter.exclude}>
+										{#if filter.exclude}
+											<span class="exclude-indicator">NOT</span>
+										{/if}
+										<span class="tag-name">{filter.tag.name}</span>
+										<button class="remove-filter" on:click={() => removeTagFilter(filter.id)}>×</button>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+				
+				<!-- Add New Filter -->
+				<div class="add-filter-section">
+					<div class="filter-controls">
+						<div class="tag-selector">
+							<select 
+								bind:value={selectedTagForFilter} 
+								class="tag-select"
+							>
+								<option value="">Select a tag...</option>
+								{#each availableTagsForFilter as tag}
+									<option value={tag.id.toString()}>{tag.name}</option>
+								{/each}
+							</select>
+						</div>
+						
+						{#if tagFilters.length > 0}
+							<div class="operator-selector">
+								<label class="radio-group">
+									<input type="radio" bind:group={nextOperator} value="AND" />
+									<span class="radio-label and-label">AND</span>
+								</label>
+								<label class="radio-group">
+									<input type="radio" bind:group={nextOperator} value="OR" />
+									<span class="radio-label or-label">OR</span>
+								</label>
+							</div>
+						{/if}
+						
+						<div class="exclude-option">
+							<label class="checkbox-group">
+								<input type="checkbox" bind:checked={excludeNext} />
+								<span class="checkbox-label">Exclude</span>
+							</label>
+						</div>
+						
+						<button 
+							class="add-filter-btn"
+							on:click={addTagFilter}
+							disabled={!selectedTagForFilter}
+						>
+							Add Filter
+						</button>
+					</div>
+					
+					{#if availableTagsForFilter.length === 0 && tags.length > 0}
+						<p class="no-more-tags">All available tags are already in use</p>
+					{/if}
+				</div>
+				
+				<!-- Filter Logic Explanation -->
+				{#if tagFilters.length > 0}
+					<div class="filter-explanation">
+						<strong>Filter Logic:</strong> 
+						<span class="logic-text">
+							Show bookmarks that 
+							{#each tagFilters as filter, index}
+								{#if index > 0}
+									<span class="logic-operator">{filter.operator.toLowerCase()}</span>
+								{/if}
+								{#if filter.exclude}
+									<span class="logic-exclude">do NOT have</span>
+								{:else}
+									<span class="logic-include">have</span>
+								{/if}
+								<span class="logic-tag">"{filter.tag.name}"</span>
+							{/each}
+						</span>
+					</div>
 				{/if}
 			</div>
-			
-			<!-- Filter Logic Explanation -->
-			{#if tagFilters.length > 0}
-				<div class="filter-explanation">
-					<strong>Filter Logic:</strong> 
-					<span class="logic-text">
-						Show bookmarks that 
-						{#each tagFilters as filter, index}
-							{#if index > 0}
-								<span class="logic-operator">{filter.operator.toLowerCase()}</span>
-							{/if}
-							{#if filter.exclude}
-								<span class="logic-exclude">do NOT have</span>
-							{:else}
-								<span class="logic-include">have</span>
-							{/if}
-							<span class="logic-tag">"{filter.tag.name}"</span>
-						{/each}
-					</span>
-				</div>
-			{/if}
-		</div>
-	{/if}
+		{/if}
+	</div>
 
 	<!-- Toast Notification -->
 	{#if showToast}
@@ -707,396 +720,424 @@
 		</div>
 	{/if}
 
-	<!-- Category Form -->
-	{#if showCategoryForm}
-		<div class="form-container">
-			<h3>✨ Add New Category</h3>
-			<form on:submit|preventDefault={createCategory}>
-				<input
-					bind:value={categoryForm.name}
-					placeholder="Category name"
-					required
-				/>
-				<input
-					bind:value={categoryForm.description}
-					placeholder="Description (optional)"
-				/>
-				<div class="form-actions">
-					<button type="submit" disabled={submitting || !categoryForm.name.trim()}>
-						{submitting ? 'Creating...' : 'Create Category'}
-					</button>
-					<button type="button" on:click={() => showCategoryForm = false}>Cancel</button>
-				</div>
-			</form>
-		</div>
-	{/if}
+	<!-- Main Content Area with Sidebar -->
+	<div class="content-layout">
+		<!-- Left Sidebar Navigation -->
+		<aside class="category-sidebar">
+			<div class="sidebar-header">
+				<h3>Categories:</h3>
+			</div>
+			<nav class="category-nav">
+				{#each Object.entries(filteredBookmarksByCategory) as [categoryName, sites]}
+					<a 
+						href="#{categoryName.replace(/\s+/g, '-').toLowerCase()}"
+						class="category-nav-link" 
+						on:click|preventDefault={() => scrollToCategory(categoryName)}
+					>
+						{categoryName}
+					</a>
+				{/each}
+			</nav>
+		</aside>
 
-	<!-- Site Form -->
-	{#if showSiteForm}
-		<div class="form-container">
-			<h3>🔖 Add New Bookmark</h3>
-			<form on:submit|preventDefault={createSite}>
-				<input
-					bind:value={siteForm.name}
-					placeholder="Site name"
-					required
-				/>
-				<input
-					bind:value={siteForm.url}
-					placeholder="URL (https://example.com)"
-					type="url"
-					required
-				/>
-				<select bind:value={siteForm.categoryId} required>
-					<option value="">Select a category</option>
-					{#each categories as category}
-						<option value={category.id}>{category.name}</option>
-					{/each}
-				</select>
-				
-				<select bind:value={siteForm.languageId}>
-					<option value="">Select a language (optional)</option>
-					{#each languages as language}
-						<option value={language.id}>{language.name} ({language.shortName})</option>
-					{/each}
-				</select>
-				
-				<input
-					bind:value={siteForm.description}
-					placeholder="Description (optional)"
-				/>
-				
-				<!-- Tags Section -->
-				<div class="tags-section">
-					<label class="tags-label">Tags:</label>
-					
-					<!-- Selected Tags -->
-					{#if siteForm.tags.length > 0}
-						<div class="selected-tags">
-							{#each siteForm.tags as tagId}
-								<span class="tag-chip">
-									{getTagName(tagId)}
-									<button type="button" class="tag-remove" on:click={() => removeTag(tagId)}>×</button>
-								</span>
-							{/each}
-						</div>
-					{/if}
-					
-					<!-- Tag Input -->
-					<div class="tag-input-container">
+		<!-- Main Content -->
+		<div class="main-content">
+			<!-- Category Form -->
+			{#if showCategoryForm}
+				<div class="form-container">
+					<h3>✨ Add New Category</h3>
+					<form on:submit|preventDefault={createCategory}>
 						<input
-							bind:value={newTagInput}
-							placeholder="Add tags..."
-							class="tag-input"
-							on:focus={() => showTagSuggestions = true}
-							on:blur={() => setTimeout(() => showTagSuggestions = false, 200)}
-							on:keydown={(e) => {
-								if (e.key === 'Enter') {
-									e.preventDefault();
-									addTag(newTagInput);
-								}
-							}}
+							bind:value={categoryForm.name}
+							placeholder="Category name"
+							required
+						/>
+						<input
+							bind:value={categoryForm.description}
+							placeholder="Description (optional)"
+						/>
+						<div class="form-actions">
+							<button type="submit" disabled={submitting || !categoryForm.name.trim()}>
+								{submitting ? 'Creating...' : 'Create Category'}
+							</button>
+							<button type="button" on:click={() => showCategoryForm = false}>Cancel</button>
+						</div>
+					</form>
+				</div>
+			{/if}
+
+			<!-- Site Form -->
+			{#if showSiteForm}
+				<div class="form-container">
+					<h3>🔖 Add New Bookmark</h3>
+					<form on:submit|preventDefault={createSite}>
+						<input
+							bind:value={siteForm.name}
+							placeholder="Site name"
+							required
+						/>
+						<input
+							bind:value={siteForm.url}
+							placeholder="URL (https://example.com)"
+							type="url"
+							required
+						/>
+						<select bind:value={siteForm.categoryId} required>
+							<option value="">Select a category</option>
+							{#each categories as category}
+								<option value={category.id}>{category.name}</option>
+							{/each}
+						</select>
+						
+						<select bind:value={siteForm.languageId}>
+							<option value="">Select a language (optional)</option>
+							{#each languages as language}
+								<option value={language.id}>{language.name} ({language.shortName})</option>
+							{/each}
+						</select>
+						
+						<input
+							bind:value={siteForm.description}
+							placeholder="Description (optional)"
 						/>
 						
-						{#if newTagInput.trim()}
-							<button 
-								type="button" 
-								class="add-tag-btn"
-								on:click={() => addTag(newTagInput)}
-							>
-								Add "{newTagInput}"
-							</button>
-						{/if}
-						
-						<!-- Tag Suggestions -->
-						{#if showTagSuggestions && filteredTags.length > 0}
-							<div class="tag-suggestions">
-								{#each filteredTags as tag}
-									<button 
-										type="button" 
-										class="tag-suggestion"
-										on:click={() => addTag(tag.name)}
-									>
-										{tag.name}
-									</button>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				</div>
-				
-				<div class="form-actions">
-					<button type="submit" disabled={submitting || !siteForm.name.trim() || !siteForm.url.trim() || !siteForm.categoryId}>
-						{submitting ? 'Creating...' : 'Create Bookmark'}
-					</button>
-					<button type="button" on:click={() => {
-						showSiteForm = false;
-						siteForm = { name: '', url: '', description: '', categoryId: '', languageId: '', tags: [] };
-						newTagInput = '';
-						showTagSuggestions = false;
-					}}>Cancel</button>
-				</div>
-			</form>
-		</div>
-	{/if}
-
-	<!-- Edit Form -->
-	{#if showEditForm && editingBookmark}
-		<div class="form-container">
-			<h3>✏️ Edit Bookmark</h3>
-			<form on:submit|preventDefault={updateBookmark}>
-				<input
-					bind:value={editingBookmark.name}
-					placeholder="Site name"
-					required
-				/>
-				<input
-					bind:value={editingBookmark.url}
-					placeholder="URL (https://example.com)"
-					type="url"
-					required
-				/>
-				<select bind:value={editingBookmark.categoryId} required>
-					<option value="">Select a category</option>
-					{#each categories as category}
-						<option value={category.id}>{category.name}</option>
-					{/each}
-				</select>
-				
-				<select bind:value={editingBookmark.languageId}>
-					<option value="">Select a language (optional)</option>
-					{#each languages as language}
-						<option value={language.id}>{language.name} ({language.shortName})</option>
-					{/each}
-				</select>
-				
-				<input
-					bind:value={editingBookmark.description}
-					placeholder="Description (optional)"
-				/>
-				
-				<!-- Edit Tags Section -->
-				<div class="tags-section">
-					<label class="tags-label">Tags:</label>
-					
-					<!-- Selected Tags -->
-					{#if editingBookmark.tags.length > 0}
-						<div class="selected-tags">
-							{#each editingBookmark.tags as tag}
-								<span class="tag-chip">
-									{tag.name}
-									<button type="button" class="tag-remove" on:click={() => removeTag(tag.id.toString(), true)}>×</button>
-								</span>
-							{/each}
-						</div>
-					{/if}
-					
-					<!-- Tag Input -->
-					<div class="tag-input-container">
-						<input
-							bind:value={editNewTagInput}
-							placeholder="Add tags..."
-							class="tag-input"
-							on:focus={() => editShowTagSuggestions = true}
-							on:blur={() => setTimeout(() => editShowTagSuggestions = false, 200)}
-							on:keydown={(e) => {
-								if (e.key === 'Enter') {
-									e.preventDefault();
-									addTag(editNewTagInput, true);
-								}
-							}}
-						/>
-						
-						{#if editNewTagInput.trim()}
-							<button 
-								type="button" 
-								class="add-tag-btn"
-								on:click={() => addTag(editNewTagInput, true)}
-							>
-								Add "{editNewTagInput}"
-							</button>
-						{/if}
-						
-						<!-- Tag Suggestions -->
-						{#if editShowTagSuggestions && editFilteredTags.length > 0}
-							<div class="tag-suggestions">
-								{#each editFilteredTags as tag}
-									<button 
-										type="button" 
-										class="tag-suggestion"
-										on:click={() => addTag(tag.name, true)}
-									>
-										{tag.name}
-									</button>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				</div>
-				
-				<div class="form-actions">
-					<button type="submit" disabled={submitting || !editingBookmark.name.trim() || !editingBookmark.url.trim()}>
-						{submitting ? 'Updating...' : 'Update Bookmark'}
-					</button>
-					<button type="button" on:click={cancelEdit}>Cancel</button>
-				</div>
-			</form>
-		</div>
-	{/if}
-	
-	{#if loading}
-		<div class="loading">
-			<div class="spinner"></div>
-			<p>Loading your awesome bookmarks...</p>
-		</div>
-	{:else if error}
-		<p class="error">❌ Error: {error}</p>
-	{:else}
-		<div class="bookmark-container">
-			{#each Object.entries(filteredBookmarksByCategory) as [categoryName, sites]}
-				{#if sites.length > 0}
-					<section class="category-section">
-						<div class="category-header-container">
-							<button class="category-header" on:click={() => toggleCategory(categoryName)} type="button">
-								<span class="category-toggle" class:collapsed={collapsedCategories[categoryName]}>
-									{collapsedCategories[categoryName] ? '▶' : '▼'}
-								</span>
-								{categoryName}
-								<span class="category-count">({sites.length})</span>
-							</button>
+						<!-- Tags Section -->
+						<div class="tags-section">
+							<label class="tags-label">Tags:</label>
 							
-							{#if sites.some(site => site.description)}
-								<div class="category-expand-all">
-									<label class="expand-all-checkbox">
-										<input 
-											type="checkbox" 
-											checked={expandAllInCategory[categoryName] || false}
-											on:change={() => toggleExpandAllInCategory(categoryName, sites)}
-										/>
-										<span class="checkbox-label">Expand all</span>
-									</label>
+							<!-- Selected Tags -->
+							{#if siteForm.tags.length > 0}
+								<div class="selected-tags">
+									{#each siteForm.tags as tagId}
+										<span class="tag-chip">
+											{getTagName(tagId)}
+											<button type="button" class="tag-remove" on:click={() => removeTag(tagId)}>×</button>
+										</span>
+									{/each}
 								</div>
 							{/if}
+							
+							<!-- Tag Input -->
+							<div class="tag-input-container">
+								<input
+									bind:value={newTagInput}
+									placeholder="Add tags..."
+									class="tag-input"
+									on:focus={() => showTagSuggestions = true}
+									on:blur={() => setTimeout(() => showTagSuggestions = false, 200)}
+									on:keydown={(e) => {
+										if (e.key === 'Enter') {
+											e.preventDefault();
+											addTag(newTagInput);
+										}
+									}}
+								/>
+								
+								{#if newTagInput.trim()}
+									<button 
+										type="button" 
+										class="add-tag-btn"
+										on:click={() => addTag(newTagInput)}
+									>
+										Add "{newTagInput}"
+									</button>
+								{/if}
+								
+								<!-- Tag Suggestions -->
+								{#if showTagSuggestions && filteredTags.length > 0}
+									<div class="tag-suggestions">
+										{#each filteredTags as tag}
+											<button 
+												type="button" 
+												class="tag-suggestion"
+												on:click={() => addTag(tag.name)}
+											>
+												{tag.name}
+											</button>
+										{/each}
+									</div>
+								{/if}
+							</div>
 						</div>
 						
-						{#if !collapsedCategories[categoryName]}
-							<div class="bookmark-grid">
-								{#each sites as site}
-									<div class="bookmark-card" class:has-expanded-description={site.description && expandedCards[site.id]}>
-										<div class="bookmark-compact" on:click={() => window.open(site.url, '_blank')} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && window.open(site.url, '_blank')}>
-											<div class="bookmark-header">
-												<div class="site-logo-container">
-													<img 
-														src={getFaviconUrl(site.url)} 
-														alt="{site.name} logo" 
-														class="site-logo"
-														on:error={(e) => {
-															const target = e.currentTarget;
-															if (target instanceof HTMLImageElement) {
-																const fallback = target.nextElementSibling;
-																if (fallback instanceof HTMLElement) {
-																	target.style.display = 'none';
-																	fallback.style.display = 'flex';
-																}
-															}
-														}}
-													/>
-													<div class="site-logo-fallback" style="display: none;">
-														{getSiteFallbackLetter(site.name)}
+						<div class="form-actions">
+							<button type="submit" disabled={submitting || !siteForm.name.trim() || !siteForm.url.trim() || !siteForm.categoryId}>
+								{submitting ? 'Creating...' : 'Create Bookmark'}
+							</button>
+							<button type="button" on:click={() => {
+								showSiteForm = false;
+								siteForm = { name: '', url: '', description: '', categoryId: '', languageId: '', tags: [] };
+								newTagInput = '';
+								showTagSuggestions = false;
+							}}>Cancel</button>
+						</div>
+					</form>
+				</div>
+			{/if}
+			
+			{#if loading}
+				<div class="loading">
+					<div class="spinner"></div>
+					<p>Loading your awesome bookmarks...</p>
+				</div>
+			{:else if error}
+				<p class="error">❌ Error: {error}</p>
+			{:else}
+				<div class="bookmark-container">
+					{#each Object.entries(filteredBookmarksByCategory) as [categoryName, sites]}
+						{#if sites.length > 0}
+							<section class="category-section" id="category-{categoryName.replace(/\s+/g, '-').toLowerCase()}">
+								<div class="category-header-container">
+									<button class="category-header" on:click={() => toggleCategory(categoryName)} type="button">
+										<span class="category-toggle" class:collapsed={collapsedCategories[categoryName]}>
+											{collapsedCategories[categoryName] ? '▶' : '▼'}
+										</span>
+										{categoryName}
+										<span class="category-count">({sites.length})</span>
+									</button>
+									
+									{#if sites.some(site => site.description)}
+										<div class="category-expand-all">
+											<label class="expand-all-checkbox">
+												<input 
+													type="checkbox" 
+													checked={expandAllInCategory[categoryName] || false}
+													on:change={() => toggleExpandAllInCategory(categoryName, sites)}
+												/>
+												<span class="checkbox-label">Expand all</span>
+											</label>
+										</div>
+									{/if}
+								</div>
+								
+								{#if !collapsedCategories[categoryName]}
+									<div class="bookmark-grid">
+										{#each sites as site}
+											<div class="bookmark-card" class:has-expanded-description={site.description && expandedCards[site.id]}>
+												<div class="bookmark-compact" on:click={() => window.open(site.url, '_blank')} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && window.open(site.url, '_blank')}>
+													<div class="bookmark-header">
+														<div class="site-logo-container">
+															<img 
+																src={getFaviconUrl(site.url)} 
+																alt="{site.name} logo" 
+																class="site-logo"
+																on:error={(e) => {
+																	const target = e.currentTarget;
+																	if (target instanceof HTMLImageElement) {
+																		const fallback = target.nextElementSibling;
+																		if (fallback instanceof HTMLElement) {
+																			target.style.display = 'none';
+																			fallback.style.display = 'flex';
+																		}
+																	}
+																}}
+															/>
+															<div class="site-logo-fallback" style="display: none;">
+																{getSiteFallbackLetter(site.name)}
+															</div>
+														</div>
+														<div class="bookmark-info">
+															<h3>{site.name}</h3>
+															<a href={site.url} target="_blank" rel="noopener noreferrer" on:click|stopPropagation>
+																{new URL(site.url).hostname}
+															</a>
+														</div>
+													</div>
+													
+													<div class="bookmark-actions">
+														<button 
+															class="action-btn edit-btn" 
+															on:click={(e) => startEditBookmark(site, e)}
+															title="Edit bookmark"
+															type="button"
+														>
+															✏️
+														</button>
+														<button 
+															class="action-btn delete-btn" 
+															on:click={(e) => deleteBookmark(site.id, e)}
+															title="Delete bookmark"
+															type="button"
+														>
+															🗑️
+														</button>
+														{#if site.description}
+															<button 
+																class="expand-btn" 
+																on:click={(e) => toggleCard(site.id, e)}
+																title={expandedCards[site.id] ? 'Collapse' : 'Expand'}
+																type="button"
+															>
+																<span class="expand-icon" class:expanded={expandedCards[site.id]}>
+																	{expandedCards[site.id] ? '▼' : '◀'}
+																</span>
+															</button>
+														{/if}
 													</div>
 												</div>
-												<div class="bookmark-info">
-													<h3>{site.name}</h3>
-													<a href={site.url} target="_blank" rel="noopener noreferrer" on:click|stopPropagation>
-														{new URL(site.url).hostname}
-													</a>
-												</div>
-											</div>
-											
-											<div class="bookmark-actions">
-												<button 
-													class="action-btn edit-btn" 
-													on:click={(e) => startEditBookmark(site, e)}
-													title="Edit bookmark"
-													type="button"
-												>
-													✏️
-												</button>
-												<button 
-													class="action-btn delete-btn" 
-													on:click={(e) => deleteBookmark(site.id, e)}
-													title="Delete bookmark"
-													type="button"
-												>
-													🗑️
-												</button>
-												{#if site.description}
-													<button 
-														class="expand-btn" 
-														on:click={(e) => toggleCard(site.id, e)}
-														title={expandedCards[site.id] ? 'Collapse' : 'Expand'}
-														type="button"
-													>
-														<span class="expand-icon" class:expanded={expandedCards[site.id]}>
-															{expandedCards[site.id] ? '▼' : '◀'}
-														</span>
-													</button>
+												
+												{#if site.description && expandedCards[site.id]}
+													<div class="bookmark-expanded">
+														<p class="bookmark-description">&nbsp;Description: <span class="description-badge">{site.description}</span></p>
+														<p class="bookmark-language">
+															{#if site.language}
+																&nbsp;Language: <span class="language-badge">{site.language.name}</span>
+															{/if}
+														</p>
+														{#if site.tags.length > 0}
+															<div class="bookmark-tags">
+																{#each site.tags as tag}
+																	<span class="bookmark-tag">{tag.name}</span>
+																{/each}
+															</div>
+														{/if}
+													</div>
 												{/if}
 											</div>
-										</div>
-										
-										{#if site.description && expandedCards[site.id]}
-											<div class="bookmark-expanded">
-												<p class="bookmark-description">&nbsp;Description: <span class="description-badge">{site.description}</span></p>
-                        <p class="bookmark-language">
-                          {#if site.language}
-                              &nbsp;Language: <span class="language-badge">{site.language.name}</span>
-                          {/if}
-                        </p>
-                        {#if site.tags.length > 0}
-                          <div class="bookmark-tags">
-                            {#each site.tags as tag}
-                              <span class="bookmark-tag">{tag.name}</span>
-                            {/each}
-                          </div>
-                        {/if}
-											</div>
-										{/if}
-										
+										{/each}
 									</div>
-								{/each}
-							</div>
+								{/if}
+							</section>
 						{/if}
-					</section>
-				{/if}
-			{/each}
-			
-			{#if Object.keys(filteredBookmarksByCategory).length === 0 && !loading}
-				<div class="empty-state">
-					{#if searchQuery || tagFilters.length > 0}
-						<h3>🔍 No bookmarks found</h3>
-						<p>No bookmarks match your current filters</p>
-						{#if searchQuery}
-							<p>Search: "{searchQuery}"</p>
-						{/if}
-						{#if tagFilters.length > 0}
-							<p>Tag filters: {tagFilters.length} active</p>
-						{/if}
-						<div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
-							{#if searchQuery}
-								<button class="btn btn-secondary" on:click={() => searchQuery = ''}>Clear search</button>
-							{/if}
-							{#if tagFilters.length > 0}
-								<button class="btn btn-secondary" on:click={clearAllTagFilters}>Clear tag filters</button>
+					{/each}
+					
+					{#if Object.keys(filteredBookmarksByCategory).length === 0 && !loading}
+						<div class="empty-state">
+							{#if searchQuery || tagFilters.length > 0}
+								<h3>🔍 No bookmarks found</h3>
+								<p>No bookmarks match your current filters</p>
+								{#if searchQuery}
+									<p>Search: "{searchQuery}"</p>
+								{/if}
+								{#if tagFilters.length > 0}
+									<p>Tag filters: {tagFilters.length} active</p>
+								{/if}
+								<div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+									{#if searchQuery}
+										<button class="btn btn-secondary" on:click={() => searchQuery = ''}>Clear search</button>
+									{/if}
+									{#if tagFilters.length > 0}
+										<button class="btn btn-secondary" on:click={clearAllTagFilters}>Clear tag filters</button>
+									{/if}
+								</div>
+							{:else}
+								<h3>📚 No bookmarks yet</h3>
+								<p>Start building your bookmark collection!</p>
+								<button class="btn btn-primary" on:click={() => showSiteForm = true}>Add your first bookmark</button>
 							{/if}
 						</div>
-					{:else}
-						<h3>📚 No bookmarks yet</h3>
-						<p>Start building your bookmark collection!</p>
-						<button class="btn btn-primary" on:click={() => showSiteForm = true}>Add your first bookmark</button>
 					{/if}
 				</div>
 			{/if}
+		</div>
+	</div>
+
+	<!-- Modal Edit Form -->
+	{#if showEditForm && editingBookmark}
+		<div class="modal-overlay" on:click={cancelEdit}>
+			<div class="modal-content" on:click|stopPropagation>
+				<div class="modal-header">
+					<h3>✏️ Edit Bookmark</h3>
+					<button class="modal-close" on:click={cancelEdit}>✕</button>
+				</div>
+				<form on:submit|preventDefault={updateBookmark} class="modal-form">
+					<input
+						bind:value={editingBookmark.name}
+						placeholder="Site name"
+						required
+					/>
+					<input
+						bind:value={editingBookmark.url}
+						placeholder="URL (https://example.com)"
+						type="url"
+						required
+					/>
+					<select bind:value={editingBookmark.categoryId} required>
+						<option value="">Select a category</option>
+						{#each categories as category}
+							<option value={category.id}>{category.name}</option>
+						{/each}
+					</select>
+					
+					<select bind:value={editingBookmark.languageId}>
+						<option value="">Select a language (optional)</option>
+						{#each languages as language}
+							<option value={language.id}>{language.name} ({language.shortName})</option>
+						{/each}
+					</select>
+					
+					<input
+						bind:value={editingBookmark.description}
+						placeholder="Description (optional)"
+					/>
+					
+					<!-- Edit Tags Section -->
+					<div class="tags-section">
+						<label class="tags-label">Tags:</label>
+						
+						<!-- Selected Tags -->
+						{#if editingBookmark.tags.length > 0}
+							<div class="selected-tags">
+								{#each editingBookmark.tags as tag}
+									<span class="tag-chip">
+										{tag.name}
+										<button type="button" class="tag-remove" on:click={() => removeTag(tag.id.toString(), true)}>×</button>
+									</span>
+								{/each}
+							</div>
+						{/if}
+						
+						<!-- Tag Input -->
+						<div class="tag-input-container">
+							<input
+								bind:value={editNewTagInput}
+								placeholder="Add tags..."
+								class="tag-input"
+								on:focus={() => editShowTagSuggestions = true}
+								on:blur={() => setTimeout(() => editShowTagSuggestions = false, 200)}
+								on:keydown={(e) => {
+									if (e.key === 'Enter') {
+										e.preventDefault();
+										addTag(editNewTagInput, true);
+									}
+								}}
+							/>
+							
+							{#if editNewTagInput.trim()}
+								<button 
+									type="button" 
+									class="add-tag-btn"
+									on:click={() => addTag(editNewTagInput, true)}
+								>
+									Add "{editNewTagInput}"
+								</button>
+							{/if}
+							
+							<!-- Tag Suggestions -->
+							{#if editShowTagSuggestions && editFilteredTags.length > 0}
+								<div class="tag-suggestions">
+									{#each editFilteredTags as tag}
+										<button 
+											type="button" 
+											class="tag-suggestion"
+											on:click={() => addTag(tag.name, true)}
+										>
+											{tag.name}
+										</button>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					</div>
+					
+					<div class="modal-actions">
+						<button type="submit" disabled={submitting || !editingBookmark.name.trim() || !editingBookmark.url.trim()} class="btn btn-primary">
+							{submitting ? 'Updating...' : 'Update Bookmark'}
+						</button>
+						<button type="button" on:click={cancelEdit} class="btn btn-secondary">Cancel</button>
+					</div>
+				</form>
+			</div>
 		</div>
 	{/if}
 </main>
@@ -1110,11 +1151,18 @@
 		min-height: 100vh;
 	}
 
-	main {
+	/* Main Layout */
+	.main-layout {
+		max-width: none;
+		margin: 0;
+		padding: 0;
+		min-height: 100vh;
+	}
+
+	.main-layout > header {
 		max-width: 1400px;
 		margin: 0 auto;
-		padding: 3rem 2rem;
-		min-height: 100vh;
+		padding: 3rem 2rem 0 2rem;
 	}
 	
 	header {
@@ -1130,20 +1178,196 @@
 		background: #333;
 		margin-top: 2rem;
 	}
+
+	/* Sticky Search Container */
+	.sticky-search-container {
+		position: sticky;
+		top: 0;
+		z-index: 100;
+		background: rgba(15, 15, 15, 0.95);
+		backdrop-filter: blur(20px);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+		padding: 1rem 2rem;
+		margin-bottom: 2rem;
+	}
+
+	.sticky-search-container .search-actions-container {
+		max-width: 1400px;
+		margin: 0 auto;
+	}
+
+	/* Content Layout */
+	.content-layout {
+		display: flex;
+		max-width: 1400px;
+		margin: 0 auto;
+		gap: 2rem;
+		padding: 0 2rem;
+	}
+
+	/* Sidebar */
+	.category-sidebar {
+		width: 200px;
+		flex-shrink: 0;
+		position: sticky;
+		top: 120px;
+		height: fit-content;
+		max-height: calc(100vh - 140px);
+		overflow-y: auto;
+		background: rgba(255, 255, 255, 0.95);
+		backdrop-filter: blur(20px);
+		border: 1px solid rgba(0, 0, 0, 0.1);
+		border-radius: 8px;
+		padding: 1.5rem;
+	}
+
+	.sidebar-header {
+		margin-bottom: 1rem;
+		padding-bottom: 0.5rem;
+		border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+	}
+
+	.sidebar-header h3 {
+		margin: 0;
+		color: #333;
+		font-size: 1rem;
+		font-weight: 600;
+	}
+
+	.category-nav {
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.category-nav-link {
+		display: block;
+		padding: 0.5rem 0;
+		color: #666;
+		text-decoration: none;
+		font-size: 0.9rem;
+		border-left: 3px solid transparent;
+		padding-left: 1rem;
+		transition: all 0.2s ease;
+		cursor: pointer;
+	}
+
+	.category-nav-link:hover {
+		color: #4ecdc4;
+		border-left-color: #4ecdc4;
+		background: rgba(78, 205, 196, 0.05);
+	}
+
+	/* Main Content */
+	.main-content {
+		flex: 1;
+		min-width: 0;
+	}
+
+	/* Modal Styles */
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.8);
+		backdrop-filter: blur(10px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+		padding: 2rem;
+		animation: fadeIn 0.3s ease-out;
+	}
+
+	@keyframes fadeIn {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+
+	.modal-content {
+		background: rgba(30, 30, 30, 0.95);
+		backdrop-filter: blur(20px);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 20px;
+		padding: 0;
+		max-width: 600px;
+		width: 100%;
+		max-height: 90vh;
+		overflow-y: auto;
+		animation: slideIn 0.3s ease-out;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+	}
+
+	@keyframes slideIn {
+		from {
+			opacity: 0;
+			transform: translateY(-20px) scale(0.95);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
+	}
+
+	.modal-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 2rem 2rem 1rem 2rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.modal-header h3 {
+		margin: 0;
+		color: #fff;
+		font-size: 1.5rem;
+	}
+
+	.modal-close {
+		background: none;
+		border: none;
+		color: rgba(255, 255, 255, 0.6);
+		cursor: pointer;
+		font-size: 1.5rem;
+		padding: 0.5rem;
+		border-radius: 50%;
+		transition: all 0.3s ease;
+	}
+
+	.modal-close:hover {
+		background: rgba(255, 255, 255, 0.1);
+		color: #ff6b6b;
+	}
+
+	.modal-form {
+		padding: 2rem;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: 1rem;
+		margin-top: 1rem;
+		justify-content: flex-end;
+	}
 	
 	/* Search and Actions Bar */
 	.search-actions-container {
 		display: flex;
 		align-items: center;
 		gap: 1rem;
-		margin-bottom: 1rem;
+		margin-bottom: 2rem;
 		flex-wrap: wrap;
 	}
 	
 	.search-input-wrapper {
 		position: relative;
 		flex: 1;
-		min-width: 300px;
+		min-width: 250px;
 	}
 	
 	/* Title Styling */
@@ -1202,25 +1426,25 @@
 	
 	.search-icon {
 		position: absolute;
-		left: 1rem;
+		left: 0.75rem;
 		top: 50%;
 		transform: translateY(-50%);
-		font-size: 1.2rem;
+		font-size: 1rem;
 		color: rgba(255, 255, 255, 0.5);
 		pointer-events: none;
 	}
 	
 	.search-input {
-	width: 100%;
-	padding: 0.5rem 0.5rem 0.5rem 2rem; /* Reduced from 1rem */
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	border-radius: 12px;
-	font-size: 0.85rem; /* Reduced from 1.1rem */
-	background: rgba(30, 30, 30, 0.8);
-	color: #fff;
-	backdrop-filter: blur(20px);
-	transition: all 0.3s ease;
-  }
+		width: 100%;
+		padding: 0.5rem 0.5rem 0.5rem 2rem;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 12px;
+		font-size: 0.85rem;
+		background: rgba(30, 30, 30, 0.8);
+		color: #fff;
+		backdrop-filter: blur(20px);
+		transition: all 0.3s ease;
+	}
 	
 	.search-input:focus {
 		outline: none;
@@ -1235,14 +1459,14 @@
 	
 	.clear-search {
 		position: absolute;
-		right: 1rem;
+		right: 0.75rem;
 		top: 50%;
 		transform: translateY(-50%);
 		background: none;
 		border: none;
 		color: rgba(255, 255, 255, 0.5);
 		cursor: pointer;
-		font-size: 1.2rem;
+		font-size: 1rem;
 		transition: color 0.3s ease;
 	}
 	
@@ -1314,24 +1538,24 @@
 	
 	.actions {
 		display: flex;
-		gap: 1.5rem;
+		gap: 1rem;
 	}
 	
 	.btn {
-    padding: 0.5rem 1rem; /* Reduced from 1rem 2rem */
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.75rem; /* Reduced from 1.1rem */
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-  }
+		padding: 0.5rem 1rem;
+		border: none;
+		border-radius: 12px;
+		cursor: pointer;
+		font-weight: 600;
+		font-size: 0.75rem;
+		text-decoration: none;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		position: relative;
+		overflow: hidden;
+	}
 	
 	.btn::before {
 		content: '';
@@ -1786,18 +2010,17 @@
 	}
 	
 	.bookmark-description {
-		/* color: rgba(255, 255, 255, 0.8); */
 		color:#4ecdc4;
 		font-size: 0.8rem;
 		margin: 0;
 		line-height: 1.4;
-    padding: 0.5rem;
-    text-align:start;
+		padding: 0.5rem;
+		text-align:start;
 	}
 
-  .description-badge {
-    color: #e0e0e0;
-  }
+	.description-badge {
+		color: #e0e0e0;
+	}
 	
 	.error {
 		color: #ff6b6b;
@@ -1819,141 +2042,141 @@
 		padding: 3rem;
 	}
 
-  /* Tags Input Styles */
-  .bookmark-tag{
-    background-color:#c44c20;
-    border-radius: 12px;
-    padding-left: 4px;
-    padding-right: 4px;
-    padding-bottom: 3px;
-  }
+	/* Tags Input Styles */
+	.bookmark-tag{
+		background-color:#c44c20;
+		border-radius: 12px;
+		padding-left: 4px;
+		padding-right: 4px;
+		padding-bottom: 3px;
+	}
 
-  .tags-section {
-    margin-top: 1rem;
-  }
+	.tags-section {
+		margin-top: 1rem;
+	}
 
-  .selected-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-  }
+	.selected-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
 
-  .tag-chip {
-    background-color: #4ecdc4;
-    color: #fff;
-    padding: 0.3rem 0.7rem;
-    border-radius: 12px;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.85rem;
-  }
+	.tag-chip {
+		background-color: #4ecdc4;
+		color: #fff;
+		padding: 0.3rem 0.7rem;
+		border-radius: 12px;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		font-size: 0.85rem;
+	}
 
-  .tag-remove {
-    background: none;
-    border: none;
-    color: inherit;
-    cursor: pointer;
-    font-size: 1rem;
-  }
+	.tag-remove {
+		background: none;
+		border: none;
+		color: inherit;
+		cursor: pointer;
+		font-size: 1rem;
+	}
 
-  .tag-input-container {
-    position: relative;
-  }
+	.tag-input-container {
+		position: relative;
+	}
 
-  .tag-input {
-    width: 50%;
-    padding: 0.6rem 1rem;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.2);
-    background-color: rgba(255,255,255,0.05);
-    color: #fff;
-  }
+	.tag-input {
+		width: 50%;
+		padding: 0.6rem 1rem;
+		border-radius: 8px;
+		border: 1px solid rgba(255,255,255,0.2);
+		background-color: rgba(255,255,255,0.05);
+		color: #fff;
+	}
 
-  .tag-input:focus {
-    outline: none;
-    border-color: #4ecdc4;
-    box-shadow: 0 0 5px rgba(78,205,196,0.3);
-  }
+	.tag-input:focus {
+		outline: none;
+		border-color: #4ecdc4;
+		box-shadow: 0 0 5px rgba(78,205,196,0.3);
+	}
 
-  .tag-suggestions {
-    position: absolute;
-    width: 50%;
-    background-color: rgb(30, 30, 30);
-    border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    z-index: 100;
-    max-height: 200px;
-    overflow-y: auto;
-    margin-top: 0.3rem;
-  }
+	.tag-suggestions {
+		position: absolute;
+		width: 50%;
+		background-color: rgb(30, 30, 30);
+		border-radius: 8px;
+		box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+		z-index: 100;
+		max-height: 200px;
+		overflow-y: auto;
+		margin-top: 0.3rem;
+	}
 
-  .tag-suggestion {
-    padding: 0.5rem 0.8rem;
-    cursor: pointer;
-    background: none;
-    color: #e0e0e0;
-    border: none;
-    width: 100%;
-    text-align: left;
-  }
+	.tag-suggestion {
+		padding: 0.5rem 0.8rem;
+		cursor: pointer;
+		background: none;
+		color: #e0e0e0;
+		border: none;
+		width: 100%;
+		text-align: left;
+	}
 
-  .tag-suggestion:hover {
-    background-color: rgba(78,205,196,0.2);
-  }
+	.tag-suggestion:hover {
+		background-color: rgba(78,205,196,0.2);
+	}
 
-  .add-tag-btn {
-    background-color: rgba(78, 205, 196, 0.9);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 0.5rem 0.8rem;
-    cursor: pointer;
-    font-size: 0.85rem;
-    margin-top: 0.3rem;
-    width: 50%;
-    text-align: left;
-    transition: background-color 0.2s ease;
-  }
+	.add-tag-btn {
+		background-color: rgba(78, 205, 196, 0.9);
+		color: white;
+		border: none;
+		border-radius: 8px;
+		padding: 0.5rem 0.8rem;
+		cursor: pointer;
+		font-size: 0.85rem;
+		margin-top: 0.3rem;
+		width: 50%;
+		text-align: left;
+		transition: background-color 0.2s ease;
+	}
 
-  .add-tag-btn:hover {
-    background-color: rgba(78, 205, 196, 1);
-  }
+	.add-tag-btn:hover {
+		background-color: rgba(78, 205, 196, 1);
+	}
 
-  /* Language Dropdown Styles */
-  select {
-    width: 100%;
-    padding: 0.7rem 1rem;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.2);
-    background-color: rgba(255,255,255,0.05);
-    color: #fff;
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%23fff'%3E%3Cpolygon points='0,0 20,0 10,10'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.7rem center;
-    background-size: 10px;
-  }
+	/* Language Dropdown Styles */
+	select {
+		width: 100%;
+		padding: 0.7rem 1rem;
+		border-radius: 8px;
+		border: 1px solid rgba(255,255,255,0.2);
+		background-color: rgba(255,255,255,0.05);
+		color: #fff;
+		appearance: none;
+		background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%23fff'%3E%3Cpolygon points='0,0 20,0 10,10'/%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 0.7rem center;
+		background-size: 10px;
+	}
 
-  select:focus {
-    outline: none;
-    border-color: #4ecdc4;
-    box-shadow: 0 0 5px rgba(78,205,196,0.3);
-  }
+	select:focus {
+		outline: none;
+		border-color: #4ecdc4;
+		box-shadow: 0 0 5px rgba(78,205,196,0.3);
+	}
 
-  option {
-    background-color: #1a1a1a;
-    color: #fff;
-  }
+	option {
+		background-color: #1a1a1a;
+		color: #fff;
+	}
 
-  .language-badge {
-    text-transform: capitalize;
-    color: #e0e0e0;
-  }
+	.language-badge {
+		text-transform: capitalize;
+		color: #e0e0e0;
+	}
 
-  .bookmark-language {
-    color:#4ecdc4;
+	.bookmark-language {
+		color:#4ecdc4;
 		font-size: 0.8rem;
 		margin: 0;
 		line-height: 1.4;
@@ -1961,7 +2184,7 @@
 		padding-left: 0.5rem;
 		padding-right: 0.5rem;
 		padding-bottom: 1rem;
-    text-align:start;
+		text-align:start;
 	}
 
 	/* Tag Filtering Styles */
@@ -2268,10 +2491,51 @@
 		font-style: italic;
 	}
 
-	/* Responsive design */
+	/* Responsive Design */
+	@media (max-width: 968px) {
+		.content-layout {
+			flex-direction: column;
+		}
+		
+		.category-sidebar {
+			width: 100%;
+			position: static;
+			height: auto;
+			max-height: none;
+		}
+		
+		.category-nav {
+			flex-direction: row;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+		
+		.category-nav-link {
+			flex: 1;
+			min-width: 120px;
+			text-align: center;
+			border-left: none;
+			border-bottom: 3px solid transparent;
+			padding: 0.5rem;
+		}
+		
+		.category-nav-link:hover {
+			border-left-color: transparent;
+			border-bottom-color: #4ecdc4;
+		}
+	}
+
 	@media (max-width: 768px) {
-		main {
-			padding: 2rem 1rem;
+		.main-layout > header {
+			padding: 2rem 1rem 0 1rem;
+		}
+		
+		.sticky-search-container {
+			padding: 1rem;
+		}
+		
+		.content-layout {
+			padding: 0 1rem;
 		}
 		
 		h1 {
@@ -2332,6 +2596,19 @@
 			flex-direction: column;
 			align-items: flex-start;
 			gap: 0.5rem;
+		}
+
+		.modal-content {
+			margin: 1rem;
+			max-width: calc(100% - 2rem);
+		}
+		
+		.modal-form {
+			padding: 1.5rem;
+		}
+		
+		.modal-actions {
+			flex-direction: column;
 		}
 	}
 </style>
