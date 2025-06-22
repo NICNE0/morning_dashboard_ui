@@ -47,6 +47,25 @@
 	// Collapsible cards state
 	let expandedCards: Record<number, boolean> = {};
 	
+	// Category expand all state
+	let expandAllInCategory: Record<string, boolean> = {};
+	
+	function toggleExpandAllInCategory(categoryName: string, sites: Site[]) {
+		const currentState = expandAllInCategory[categoryName] || false;
+		const newState = !currentState;
+		
+		expandAllInCategory[categoryName] = newState;
+		expandAllInCategory = { ...expandAllInCategory };
+		
+		// Update all cards in this category
+		sites.forEach(site => {
+			if (site.description) { // Only expand cards that have descriptions
+				expandedCards[site.id] = newState;
+			}
+		});
+		expandedCards = { ...expandedCards };
+	}
+	
 	function showToastNotification(message: string, type: 'success' | 'error' = 'success') {
 		toastMessage = message;
 		toastType = type;
@@ -262,19 +281,12 @@
 
 <main>
 	<header>
-		<h1>📚 My Bookmark Manager</h1>
-		<div class="actions">
-			<button on:click={() => showCategoryForm = !showCategoryForm} class="btn btn-secondary">
-				✨ Add Category
-			</button>
-			<button on:click={() => showSiteForm = !showSiteForm} class="btn btn-primary">
-				🔖 Add Bookmark
-			</button>
-		</div>
+		<h1><span class="title-icon">📚</span> <span class="title-text">My Bookmark Manager</span></h1>
+		<div class="divider"></div>
 	</header>
 
-	<!-- Search Bar -->
-	<div class="search-container">
+	<!-- Search and Actions Bar -->
+	<div class="search-actions-container">
 		<div class="search-input-wrapper">
 			<span class="search-icon">🔍</span>
 			<input
@@ -286,6 +298,14 @@
 			{#if searchQuery}
 				<button class="clear-search" on:click={() => searchQuery = ''}>✕</button>
 			{/if}
+		</div>
+		<div class="actions">
+			<button on:click={() => showCategoryForm = !showCategoryForm} class="btn btn-secondary">
+				✨ Add Category
+			</button>
+			<button on:click={() => showSiteForm = !showSiteForm} class="btn btn-primary">
+				🔖 Add Bookmark
+			</button>
 		</div>
 	</div>
 
@@ -404,18 +424,33 @@
 			{#each Object.entries(filteredBookmarksByCategory) as [categoryName, sites]}
 				{#if sites.length > 0}
 					<section class="category-section">
-						<h2 class="category-header" on:click={() => toggleCategory(categoryName)}>
-							<span class="category-toggle" class:collapsed={collapsedCategories[categoryName]}>
-								{collapsedCategories[categoryName] ? '▶' : '▼'}
-							</span>
-							{categoryName}
-							<span class="category-count">({sites.length})</span>
-						</h2>
+						<div class="category-header-container">
+							<h2 class="category-header" on:click={() => toggleCategory(categoryName)}>
+								<span class="category-toggle" class:collapsed={collapsedCategories[categoryName]}>
+									{collapsedCategories[categoryName] ? '▶' : '▼'}
+								</span>
+								{categoryName}
+								<span class="category-count">({sites.length})</span>
+							</h2>
+							
+							{#if sites.some(site => site.description)}
+								<div class="category-expand-all">
+									<label class="expand-all-checkbox">
+										<input 
+											type="checkbox" 
+											checked={expandAllInCategory[categoryName] || false}
+											on:change={() => toggleExpandAllInCategory(categoryName, sites)}
+										/>
+										<span class="checkbox-label">Expand all</span>
+									</label>
+								</div>
+							{/if}
+						</div>
 						
 						{#if !collapsedCategories[categoryName]}
 							<div class="bookmark-grid">
 								{#each sites as site}
-									<div class="bookmark-card" class:expanded={expandedCards[site.id]}>
+									<div class="bookmark-card" class:has-expanded-description={site.description && expandedCards[site.id]}>
 										<div class="bookmark-compact" on:click={() => window.open(site.url, '_blank')}>
 											<div class="bookmark-header">
 												<div class="site-logo-container">
@@ -517,22 +552,85 @@
 	
 	header {
 		display: flex;
-		justify-content: space-between;
-		align-items: center;
+		flex-direction: column;
 		margin-bottom: 2rem;
-		padding: 2rem 0;
-		border-bottom: 1px solid #333;
+		padding: 2rem 0 0 0;
 	}
 	
-	/* Search Bar */
-	.search-container {
+	.divider {
+		width: 100%;
+		height: 1px;
+		background: #333;
+		margin-top: 2rem;
+	}
+	
+	/* Search and Actions Bar */
+	.search-actions-container {
+		display: flex;
+		align-items: center;
+		gap: 2rem;
 		margin-bottom: 3rem;
+		flex-wrap: wrap;
 	}
 	
 	.search-input-wrapper {
 		position: relative;
-		max-width: 500px;
-		margin: 0 auto;
+		flex: 1;
+		min-width: 300px;
+	}
+	
+	/* Title Styling */
+	.title-icon {
+		color: #ff6b6b;
+	}
+	
+	.title-text {
+		color: #4ecdc4;
+	}
+	
+	/* Category Header Container */
+	.category-header-container {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 2rem;
+		position: relative;
+	}
+	
+	.category-expand-all {
+		opacity: 0;
+		transition: opacity 0.3s ease;
+		position: absolute;
+		right: 0;
+	}
+	
+	.category-header-container:hover .category-expand-all {
+		opacity: 1;
+	}
+	
+	.expand-all-checkbox {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		cursor: pointer;
+		font-size: 0.9rem;
+		color: rgba(255, 255, 255, 0.7);
+		transition: color 0.3s ease;
+		white-space: nowrap;
+	}
+	
+	.expand-all-checkbox:hover {
+		color: #4ecdc4;
+	}
+	
+	.expand-all-checkbox input[type="checkbox"] {
+		accent-color: #4ecdc4;
+		width: 16px;
+		height: 16px;
+	}
+	
+	.checkbox-label {
+		user-select: none;
 	}
 	
 	.search-icon {
@@ -643,10 +741,6 @@
 	h1 {
 		font-size: 3.5rem;
 		font-weight: 700;
-		background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1);
-		background-clip: text;
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
 		margin: 0;
 		text-shadow: 0 0 30px rgba(255, 107, 107, 0.3);
 	}
@@ -887,7 +981,7 @@
 		left: 0;
 		width: 60px;
 		height: 3px;
-		background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+		background: #4ecdc4;
 		border-radius: 2px;
 	}
 	
@@ -895,6 +989,7 @@
 		display: grid;
 		gap: 1rem;
 		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+		align-items: start;
 	}
 	
 	.bookmark-card {
@@ -908,10 +1003,6 @@
 		overflow: hidden;
 		height: auto;
 		min-height: 50px;
-	}
-	
-	.bookmark-card.expanded {
-		height: auto;
 	}
 	
 	.bookmark-compact {
@@ -1138,18 +1229,28 @@
 			padding: 2rem 1rem;
 		}
 		
-		header {
-			flex-direction: column;
-			gap: 2rem;
-			text-align: center;
-		}
-		
 		h1 {
 			font-size: 2.5rem;
 		}
 		
+		.search-actions-container {
+			flex-direction: column;
+			gap: 1.5rem;
+		}
+		
+		.search-input-wrapper {
+			min-width: 100%;
+		}
+		
 		.actions {
 			justify-content: center;
+			width: 100%;
+		}
+		
+		.category-header-container {
+			flex-direction: column;
+			gap: 1rem;
+			align-items: flex-start;
 		}
 		
 		.bookmark-grid {
