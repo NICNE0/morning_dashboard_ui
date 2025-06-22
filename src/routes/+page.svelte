@@ -459,8 +459,14 @@
 														alt="{site.name} logo" 
 														class="site-logo"
 														on:error={(e) => {
-															e.currentTarget.style.display = 'none';
-															e.currentTarget.nextElementSibling.style.display = 'flex';
+															const target = e.currentTarget;
+															if (target instanceof HTMLImageElement) {
+																const fallback = target.nextElementSibling;
+																if (fallback instanceof HTMLElement) {
+																	target.style.display = 'none';
+																	fallback.style.display = 'flex';
+																}
+															}
 														}}
 													/>
 													<div class="site-logo-fallback" style="display: none;">
@@ -598,7 +604,6 @@
 		align-items: center;
 		margin-bottom: 2rem;
 		position: relative;
-		padding-bottom: 1rem;
 	}
 	
 	.category-expand-all {
@@ -931,8 +936,7 @@
 	.category-section {
 		margin-bottom: 4rem;
 	}
-  
-	
+
 	.category-header-container::after {
 		content: '';
 		position: absolute;
