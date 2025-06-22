@@ -439,7 +439,7 @@
 
 <main>
 	<header>
-		<h1><span class="title-icon">📚</span> <span class="title-text">My Bookmark Manager</span></h1>
+		<h1><span class="title-icon">📚</span> <span class="title-text">Bookmark Manager</span></h1>
 		<div class="divider"></div>
 	</header>
 
