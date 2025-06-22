@@ -7,7 +7,14 @@
 		description: string | null;
 		url: string;
 		categoryId: number;
+		languageId?: number | null;
 		createdAt: Date;
+		language?: {
+			id: number;
+			name: string;
+			shortName: string;
+		} | null;
+		tags: Tag[];
 	}
 	
 	interface Category {
@@ -16,8 +23,22 @@
 		description: string | null;
 	}
 	
+	interface Language {
+		id: number;
+		name: string;
+		shortName: string;
+	}
+	
+	interface Tag {
+		id: number;
+		name: string;
+		count?: number;
+	}
+	
 	let bookmarksByCategory: Record<string, Site[]> = {};
 	let categories: Category[] = [];
+	let languages: Language[] = [];
+	let tags: Tag[] = [];
 	let loading = true;
 	let error = '';
 	
@@ -25,7 +46,14 @@
 	let showCategoryForm = false;
 	let showSiteForm = false;
 	let categoryForm = { name: '', description: '' };
-	let siteForm = { name: '', url: '', description: '', categoryId: '' };
+	let siteForm = { 
+		name: '', 
+		url: '', 
+		description: '', 
+		categoryId: '', 
+		languageId: '',
+		tags: [] as string[]
+	};
 	let submitting = false;
 	
 	// Edit states
@@ -49,6 +77,14 @@
 	
 	// Category expand all state
 	let expandAllInCategory: Record<string, boolean> = {};
+	
+	// Tag input states
+	let newTagInput = '';
+	let showTagSuggestions = false;
+	let filteredTags: Tag[] = [];
+	let editNewTagInput = '';
+	let editShowTagSuggestions = false;
+	let editFilteredTags: Tag[] = [];
 	
 	function toggleExpandAllInCategory(categoryName: string, sites: Site[]) {
 		const currentState = expandAllInCategory[categoryName] || false;
@@ -88,13 +124,18 @@
 	
 	function startEditBookmark(bookmark: Site, event: MouseEvent) {
 		event.stopPropagation();
-		editingBookmark = { ...bookmark };
+		editingBookmark = { 
+			...bookmark,
+			languageId: bookmark.languageId || null
+		};
 		showEditForm = true;
 	}
 	
 	function cancelEdit() {
 		editingBookmark = null;
 		showEditForm = false;
+		editNewTagInput = '';
+		editShowTagSuggestions = false;
 	}
 	
 	function filterBookmarks(query: string) {
@@ -111,7 +152,9 @@
 				site.name.toLowerCase().includes(lowercaseQuery) ||
 				site.description?.toLowerCase().includes(lowercaseQuery) ||
 				site.url.toLowerCase().includes(lowercaseQuery) ||
-				categoryName.toLowerCase().includes(lowercaseQuery)
+				categoryName.toLowerCase().includes(lowercaseQuery) ||
+				site.language?.name.toLowerCase().includes(lowercaseQuery) ||
+				site.tags.some(tag => tag.name.toLowerCase().includes(lowercaseQuery))
 			);
 			
 			if (matchingSites.length > 0) {
@@ -137,6 +180,93 @@
 			return 'https://www.google.com/s2/favicons?domain=example.com&sz=32';
 		}
 	}
+	
+	// Tag management functions
+	function filterTagSuggestions(input: string) {
+		if (!input.trim()) {
+			filteredTags = [];
+			return;
+		}
+		
+		const lowercaseInput = input.toLowerCase();
+		filteredTags = tags.filter(tag => 
+			tag.name.toLowerCase().includes(lowercaseInput) &&
+			!siteForm.tags.includes(tag.id.toString())
+		).slice(0, 10);
+	}
+	
+	function filterEditTagSuggestions(input: string) {
+		if (!input.trim()) {
+			editFilteredTags = [];
+			return;
+		}
+		
+		const lowercaseInput = input.toLowerCase();
+		const currentEditTags = editingBookmark?.tags.map(t => t.id.toString()) || [];
+		editFilteredTags = tags.filter(tag => 
+			tag.name.toLowerCase().includes(lowercaseInput) &&
+			!currentEditTags.includes(tag.id.toString())
+		).slice(0, 10);
+	}
+	
+	async function addTag(tagName: string, isEdit = false) {
+		const trimmedName = tagName.trim().toLowerCase();
+		if (!trimmedName) return;
+		
+		// Check if tag already exists
+		let existingTag = tags.find(tag => tag.name.toLowerCase() === trimmedName);
+		
+		if (!existingTag) {
+			// Create new tag
+			try {
+				const response = await fetch('/api/tags', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ name: trimmedName })
+				});
+				
+				if (response.ok) {
+					existingTag = await response.json();
+					tags = [...tags, existingTag];
+				} else {
+					throw new Error('Failed to create tag');
+				}
+			} catch (err) {
+				showToastNotification('Failed to create tag', 'error');
+				return;
+			}
+		}
+		
+		// Add to form
+		if (isEdit && editingBookmark) {
+			if (!editingBookmark.tags.some(t => t.id === existingTag.id)) {
+				editingBookmark.tags = [...editingBookmark.tags, existingTag];
+				editingBookmark = { ...editingBookmark };
+			}
+			editNewTagInput = '';
+			editShowTagSuggestions = false;
+		} else {
+			if (!siteForm.tags.includes(existingTag.id.toString())) {
+				siteForm.tags = [...siteForm.tags, existingTag.id.toString()];
+			}
+			newTagInput = '';
+			showTagSuggestions = false;
+		}
+	}
+	
+	function removeTag(tagId: string, isEdit = false) {
+		if (isEdit && editingBookmark) {
+			editingBookmark.tags = editingBookmark.tags.filter(t => t.id.toString() !== tagId);
+			editingBookmark = { ...editingBookmark };
+		} else {
+			siteForm.tags = siteForm.tags.filter(id => id !== tagId);
+		}
+	}
+	
+	function getTagName(tagId: string): string {
+		const tag = tags.find(t => t.id.toString() === tagId);
+		return tag ? tag.name : 'Unknown';
+	}
 
 	onMount(() => {
 		loadData();
@@ -145,15 +275,24 @@
 	async function loadData() {
 		try {
 			loading = true;
-			// Fetch bookmarks
-			const bookmarksResponse = await fetch('/api/bookmarks');
-			if (!bookmarksResponse.ok) throw new Error('Failed to fetch bookmarks');
-			bookmarksByCategory = await bookmarksResponse.json();
 			
-			// Fetch categories
-			const categoriesResponse = await fetch('/api/categories');
+			// Fetch all data in parallel
+			const [bookmarksResponse, categoriesResponse, languagesResponse, tagsResponse] = await Promise.all([
+				fetch('/api/bookmarks'),
+				fetch('/api/categories'),
+				fetch('/api/languages'),
+				fetch('/api/tags')
+			]);
+			
+			if (!bookmarksResponse.ok) throw new Error('Failed to fetch bookmarks');
 			if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
+			if (!languagesResponse.ok) throw new Error('Failed to fetch languages');
+			if (!tagsResponse.ok) throw new Error('Failed to fetch tags');
+			
+			bookmarksByCategory = await bookmarksResponse.json();
 			categories = await categoriesResponse.json();
+			languages = await languagesResponse.json();
+			tags = await tagsResponse.json();
 			
 			// Initialize filtered bookmarks
 			filteredBookmarksByCategory = bookmarksByCategory;
@@ -198,10 +337,19 @@
 		
 		try {
 			submitting = true;
+			const payload = {
+				name: siteForm.name,
+				url: siteForm.url,
+				description: siteForm.description,
+				categoryId: siteForm.categoryId,
+				languageId: siteForm.languageId || null,
+				tagIds: siteForm.tags.map(id => parseInt(id))
+			};
+			
 			const response = await fetch('/api/bookmarks', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(siteForm)
+				body: JSON.stringify(payload)
 			});
 
 			if (!response.ok) {
@@ -210,7 +358,9 @@
 			}
 
 			// Reset form and reload data
-			siteForm = { name: '', url: '', description: '', categoryId: '' };
+			siteForm = { name: '', url: '', description: '', categoryId: '', languageId: '', tags: [] };
+			newTagInput = '';
+			showTagSuggestions = false;
 			showSiteForm = false;
 			await loadData();
 			showToastNotification('Bookmark created successfully!');
@@ -226,15 +376,19 @@
 		
 		try {
 			submitting = true;
+			const payload = {
+				name: editingBookmark.name,
+				url: editingBookmark.url,
+				description: editingBookmark.description,
+				categoryId: editingBookmark.categoryId,
+				languageId: editingBookmark.languageId || null,
+				tagIds: editingBookmark.tags.map(t => t.id)
+			};
+			
 			const response = await fetch(`/api/bookmarks/${editingBookmark.id}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					name: editingBookmark.name,
-					url: editingBookmark.url,
-					description: editingBookmark.description,
-					categoryId: editingBookmark.categoryId
-				})
+				body: JSON.stringify(payload)
 			});
 
 			if (!response.ok) {
@@ -273,6 +427,10 @@
 			showToastNotification(err instanceof Error ? err.message : 'Failed to delete bookmark', 'error');
 		}
 	}
+	
+	// Reactive statements for tag filtering
+	$: filterTagSuggestions(newTagInput);
+	$: filterEditTagSuggestions(editNewTagInput);
 </script>
 
 <svelte:head>
@@ -362,15 +520,88 @@
 						<option value={category.id}>{category.name}</option>
 					{/each}
 				</select>
+				
+				<select bind:value={siteForm.languageId}>
+					<option value="">Select a language (optional)</option>
+					{#each languages as language}
+						<option value={language.id}>{language.name} ({language.shortName})</option>
+					{/each}
+				</select>
+				
 				<input
 					bind:value={siteForm.description}
 					placeholder="Description (optional)"
 				/>
+				
+				<!-- Tags Section -->
+				<div class="tags-section">
+					<label class="tags-label">Tags:</label>
+					
+					<!-- Selected Tags -->
+					{#if siteForm.tags.length > 0}
+						<div class="selected-tags">
+							{#each siteForm.tags as tagId}
+								<span class="tag-chip">
+									{getTagName(tagId)}
+									<button type="button" class="tag-remove" on:click={() => removeTag(tagId)}>×</button>
+								</span>
+							{/each}
+						</div>
+					{/if}
+					
+					<!-- Tag Input -->
+					<div class="tag-input-container">
+						<input
+							bind:value={newTagInput}
+							placeholder="Add tags..."
+							class="tag-input"
+							on:focus={() => showTagSuggestions = true}
+							on:blur={() => setTimeout(() => showTagSuggestions = false, 200)}
+							on:keydown={(e) => {
+								if (e.key === 'Enter') {
+									e.preventDefault();
+									addTag(newTagInput);
+								}
+							}}
+						/>
+						
+						{#if newTagInput.trim()}
+							<button 
+								type="button" 
+								class="add-tag-btn"
+								on:click={() => addTag(newTagInput)}
+							>
+								Add "{newTagInput}"
+							</button>
+						{/if}
+						
+						<!-- Tag Suggestions -->
+						{#if showTagSuggestions && filteredTags.length > 0}
+							<div class="tag-suggestions">
+								{#each filteredTags as tag}
+									<button 
+										type="button" 
+										class="tag-suggestion"
+										on:click={() => addTag(tag.name)}
+									>
+										{tag.name}
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</div>
+				
 				<div class="form-actions">
 					<button type="submit" disabled={submitting || !siteForm.name.trim() || !siteForm.url.trim() || !siteForm.categoryId}>
 						{submitting ? 'Creating...' : 'Create Bookmark'}
 					</button>
-					<button type="button" on:click={() => showSiteForm = false}>Cancel</button>
+					<button type="button" on:click={() => {
+						showSiteForm = false;
+						siteForm = { name: '', url: '', description: '', categoryId: '', languageId: '', tags: [] };
+						newTagInput = '';
+						showTagSuggestions = false;
+					}}>Cancel</button>
 				</div>
 			</form>
 		</div>
@@ -398,10 +629,78 @@
 						<option value={category.id}>{category.name}</option>
 					{/each}
 				</select>
+				
+				<select bind:value={editingBookmark.languageId}>
+					<option value="">Select a language (optional)</option>
+					{#each languages as language}
+						<option value={language.id}>{language.name} ({language.shortName})</option>
+					{/each}
+				</select>
+				
 				<input
 					bind:value={editingBookmark.description}
 					placeholder="Description (optional)"
 				/>
+				
+				<!-- Edit Tags Section -->
+				<div class="tags-section">
+					<label class="tags-label">Tags:</label>
+					
+					<!-- Selected Tags -->
+					{#if editingBookmark.tags.length > 0}
+						<div class="selected-tags">
+							{#each editingBookmark.tags as tag}
+								<span class="tag-chip">
+									{tag.name}
+									<button type="button" class="tag-remove" on:click={() => removeTag(tag.id.toString(), true)}>×</button>
+								</span>
+							{/each}
+						</div>
+					{/if}
+					
+					<!-- Tag Input -->
+					<div class="tag-input-container">
+						<input
+							bind:value={editNewTagInput}
+							placeholder="Add tags..."
+							class="tag-input"
+							on:focus={() => editShowTagSuggestions = true}
+							on:blur={() => setTimeout(() => editShowTagSuggestions = false, 200)}
+							on:keydown={(e) => {
+								if (e.key === 'Enter') {
+									e.preventDefault();
+									addTag(editNewTagInput, true);
+								}
+							}}
+						/>
+						
+						{#if editNewTagInput.trim()}
+							<button 
+								type="button" 
+								class="add-tag-btn"
+								on:click={() => addTag(editNewTagInput, true)}
+							>
+								Add "{editNewTagInput}"
+							</button>
+						{/if}
+						
+						<!-- Tag Suggestions -->
+						{#if editShowTagSuggestions && editFilteredTags.length > 0}
+							<div class="tag-suggestions">
+								{#each editFilteredTags as tag}
+									<button 
+										type="button" 
+										class="tag-suggestion"
+										on:click={() => addTag(tag.name, true)}
+									>
+										{tag.name}
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</div>
+				
 				<div class="form-actions">
 					<button type="submit" disabled={submitting || !editingBookmark.name.trim() || !editingBookmark.url.trim()}>
 						{submitting ? 'Updating...' : 'Update Bookmark'}
@@ -478,6 +777,9 @@
 													<a href={site.url} target="_blank" rel="noopener noreferrer" on:click|stopPropagation>
 														{new URL(site.url).hostname}
 													</a>
+													{#if site.language}
+														<span class="language-badge">{site.language.shortName}</span>
+													{/if}
 												</div>
 											</div>
 											
@@ -516,6 +818,14 @@
 										{#if site.description && expandedCards[site.id]}
 											<div class="bookmark-expanded">
 												<p class="bookmark-description">{site.description}</p>
+											</div>
+										{/if}
+										
+										{#if site.tags.length > 0}
+											<div class="bookmark-tags">
+												{#each site.tags as tag}
+													<span class="bookmark-tag">{tag.name}</span>
+												{/each}
 											</div>
 										{/if}
 									</div>
@@ -1225,6 +1535,127 @@
 		color: rgba(255, 255, 255, 0.7);
 		padding: 3rem;
 	}
+
+  /* Tags Input Styles */
+  .tags-section {
+    margin-top: 1rem;
+  }
+
+  .selected-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .tag-chip {
+    background-color: #4ecdc4;
+    color: #fff;
+    padding: 0.3rem 0.7rem;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+  }
+
+  .tag-remove {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+
+  .tag-input-container {
+    position: relative;
+  }
+
+  .tag-input {
+    width: 50%;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background-color: rgba(255,255,255,0.05);
+    color: #fff;
+  }
+
+  .tag-input:focus {
+    outline: none;
+    border-color: #4ecdc4;
+    box-shadow: 0 0 5px rgba(78,205,196,0.3);
+  }
+
+  .tag-suggestions {
+    position: absolute;
+    width: 50%;
+    background-color: rgb(30, 30, 30);
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    z-index: 100;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 0.3rem;
+  }
+
+  .tag-suggestion {
+    padding: 0.5rem 0.8rem;
+    cursor: pointer;
+    background: none;
+    color: #e0e0e0;
+    border: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  .tag-suggestion:hover {
+    background-color: rgba(78,205,196,0.2);
+  }
+
+  .add-tag-btn {
+    background-color: rgba(78, 205, 196, 0.9);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 0.8rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    margin-top: 0.3rem;
+    width: 50%;
+    text-align: left;
+    transition: background-color 0.2s ease;
+  }
+
+  .add-tag-btn:hover {
+    background-color: rgba(78, 205, 196, 1);
+  }
+
+  /* Language Dropdown Styles */
+  select {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background-color: rgba(255,255,255,0.05);
+    color: #fff;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%23fff'%3E%3Cpolygon points='0,0 20,0 10,10'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem center;
+    background-size: 10px;
+  }
+
+  select:focus {
+    outline: none;
+    border-color: #4ecdc4;
+    box-shadow: 0 0 5px rgba(78,205,196,0.3);
+  }
+
+  option {
+    background-color: #1a1a1a;
+    color: #fff;
+  }
+
 	
 	/* Responsive design */
 	@media (max-width: 768px) {
