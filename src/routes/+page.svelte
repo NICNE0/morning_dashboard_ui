@@ -425,13 +425,13 @@
 				{#if sites.length > 0}
 					<section class="category-section">
 						<div class="category-header-container">
-							<h2 class="category-header" on:click={() => toggleCategory(categoryName)}>
+							<button class="category-header" on:click={() => toggleCategory(categoryName)} type="button">
 								<span class="category-toggle" class:collapsed={collapsedCategories[categoryName]}>
 									{collapsedCategories[categoryName] ? '▶' : '▼'}
 								</span>
 								{categoryName}
 								<span class="category-count">({sites.length})</span>
-							</h2>
+							</button>
 							
 							{#if sites.some(site => site.description)}
 								<div class="category-expand-all">
@@ -451,7 +451,7 @@
 							<div class="bookmark-grid">
 								{#each sites as site}
 									<div class="bookmark-card" class:has-expanded-description={site.description && expandedCards[site.id]}>
-										<div class="bookmark-compact" on:click={() => window.open(site.url, '_blank')}>
+										<div class="bookmark-compact" on:click={() => window.open(site.url, '_blank')} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && window.open(site.url, '_blank')}>
 											<div class="bookmark-header">
 												<div class="site-logo-container">
 													<img 
@@ -480,6 +480,7 @@
 													class="action-btn edit-btn" 
 													on:click={(e) => startEditBookmark(site, e)}
 													title="Edit bookmark"
+													type="button"
 												>
 													✏️
 												</button>
@@ -487,6 +488,7 @@
 													class="action-btn delete-btn" 
 													on:click={(e) => deleteBookmark(site.id, e)}
 													title="Delete bookmark"
+													type="button"
 												>
 													🗑️
 												</button>
@@ -495,6 +497,7 @@
 														class="expand-btn" 
 														on:click={(e) => toggleCard(site.id, e)}
 														title={expandedCards[site.id] ? 'Collapse' : 'Expand'}
+														type="button"
 													>
 														<span class="expand-icon" class:expanded={expandedCards[site.id]}>
 															{expandedCards[site.id] ? '▼' : '◀'}
@@ -595,6 +598,7 @@
 		align-items: center;
 		margin-bottom: 2rem;
 		position: relative;
+		padding-bottom: 1rem;
 	}
 	
 	.category-expand-all {
@@ -927,19 +931,7 @@
 	.category-section {
 		margin-bottom: 4rem;
 	}
-	
-	.category-section h2 {
-		font-size: 2.2rem;
-		font-weight: 600;
-		background: linear-gradient(135deg, #4ecdc4, #44a08d);
-		background-clip: text;
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		padding-bottom: 1rem;
-		margin: 0;
-		position: relative;
-		border-bottom: 3px solid transparent;
-	}
+  
 	
 	.category-header-container::after {
 		content: '';
@@ -961,6 +953,17 @@
 		transition: all 0.3s ease;
 		padding: 0.5rem;
 		border-radius: 8px;
+		background: none;
+		border: none;
+		font-size: 2.2rem;
+		font-weight: 600;
+		background: linear-gradient(135deg, #4ecdc4, #44a08d);
+		background-clip: text;
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		margin: 0;
+		text-align: left;
+		width: auto;
 	}
 	
 	.category-toggle {
@@ -973,10 +976,6 @@
 		font-size: 1rem;
 		opacity: 0.7;
 		font-weight: 400;
-	}
-	
-	.category-section h2::after {
-		/* Removed - now using container::after for consistent width */
 	}
 	
 	.bookmark-grid {
@@ -1005,6 +1004,13 @@
 		display: flex;
 		align-items: center;
 		gap: 1rem;
+		width: 100%;
+		cursor: pointer;
+	}
+	
+	.bookmark-compact:focus {
+		outline: 2px solid #4ecdc4;
+		outline-offset: 2px;
 	}
 	
 	.bookmark-expanded {
