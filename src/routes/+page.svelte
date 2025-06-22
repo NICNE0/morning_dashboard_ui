@@ -385,37 +385,44 @@
 	});
 
 	async function loadData() {
-		try {
-			loading = true;
-			
-			// Fetch all data in parallel
-			const [bookmarksResponse, categoriesResponse, languagesResponse, tagsResponse] = await Promise.all([
-				fetch('/api/bookmarks'),
-				fetch('/api/categories'),
-				fetch('/api/languages'),
-				fetch('/api/tags')
-			]);
-			
-			if (!bookmarksResponse.ok) throw new Error('Failed to fetch bookmarks');
-			if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
-			if (!languagesResponse.ok) throw new Error('Failed to fetch languages');
-			if (!tagsResponse.ok) throw new Error('Failed to fetch tags');
-			
-			bookmarksByCategory = await bookmarksResponse.json();
-			categories = await categoriesResponse.json();
-			languages = await languagesResponse.json();
-			tags = await tagsResponse.json();
-			
-			// Initialize filtered bookmarks and available tags
-			filteredBookmarksByCategory = bookmarksByCategory;
-			updateAvailableTagsForFilter();
-			
-			loading = false;
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Unknown error';
-			loading = false;
-		}
-	}
+    try {
+      loading = true;
+      
+      // Fetch all data in parallel
+      const [bookmarksResponse, categoriesResponse, languagesResponse, tagsResponse] = await Promise.all([
+        fetch('/api/bookmarks'),
+        fetch('/api/categories'),
+        fetch('/api/languages'),
+        fetch('/api/tags')
+      ]);
+      
+      if (!bookmarksResponse.ok) throw new Error('Failed to fetch bookmarks');
+      if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
+      if (!languagesResponse.ok) throw new Error('Failed to fetch languages');
+      if (!tagsResponse.ok) throw new Error('Failed to fetch tags');
+      
+      bookmarksByCategory = await bookmarksResponse.json();
+      categories = await categoriesResponse.json();
+      languages = await languagesResponse.json();
+      tags = await tagsResponse.json();
+      
+      // Initialize collapsed state - collapse all except first two categories
+      const categoryNames = Object.keys(bookmarksByCategory);
+      collapsedCategories = {};
+      categoryNames.forEach((name, index) => {
+        collapsedCategories[name] = index >= 2; // Collapse categories after the first two
+      });
+      
+      // Initialize filtered bookmarks and available tags
+      filteredBookmarksByCategory = bookmarksByCategory;
+      updateAvailableTagsForFilter();
+      
+      loading = false;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Unknown error';
+      loading = false;
+    }
+  }
 
 	async function createCategory() {
 		if (!categoryForm.name.trim()) return;
@@ -1128,8 +1135,8 @@
 	.search-actions-container {
 		display: flex;
 		align-items: center;
-		gap: 2rem;
-		margin-bottom: 3rem;
+		gap: 1rem;
+		margin-bottom: 1rem;
 		flex-wrap: wrap;
 	}
 	
@@ -1204,16 +1211,16 @@
 	}
 	
 	.search-input {
-		width: 100%;
-		padding: 1rem 1rem 1rem 3rem;
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		border-radius: 12px;
-		font-size: 1.1rem;
-		background: rgba(30, 30, 30, 0.8);
-		color: #fff;
-		backdrop-filter: blur(20px);
-		transition: all 0.3s ease;
-	}
+	width: 100%;
+	padding: 0.5rem 0.5rem 0.5rem 2rem; /* Reduced from 1rem */
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 12px;
+	font-size: 0.85rem; /* Reduced from 1.1rem */
+	background: rgba(30, 30, 30, 0.8);
+	color: #fff;
+	backdrop-filter: blur(20px);
+	transition: all 0.3s ease;
+  }
 	
 	.search-input:focus {
 		outline: none;
@@ -1311,20 +1318,20 @@
 	}
 	
 	.btn {
-		padding: 1rem 2rem;
-		border: none;
-		border-radius: 12px;
-		cursor: pointer;
-		font-weight: 600;
-		font-size: 1.1rem;
-		text-decoration: none;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-		position: relative;
-		overflow: hidden;
-	}
+    padding: 0.5rem 1rem; /* Reduced from 1rem 2rem */
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.75rem; /* Reduced from 1.1rem */
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
 	
 	.btn::before {
 		content: '';

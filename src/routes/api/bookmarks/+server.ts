@@ -6,8 +6,8 @@ import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
 	try {
-		// Get all categories
-		const categories = await db.select().from(category);
+		// Get all categories sorted alphabetically
+		const categories = await db.select().from(category).orderBy(category.name);
 		
 		// Get all sites with their language and tags
 		const sites = await db.select({
@@ -25,7 +25,8 @@ export const GET: RequestHandler = async () => {
 			}
 		})
 		.from(site)
-		.leftJoin(language, eq(site.languageId, language.id));
+		.leftJoin(language, eq(site.languageId, language.id))
+		.orderBy(site.name); // Sort sites alphabetically
 		
 		// Get tags for each site
 		const siteTags = await db.select({
@@ -53,12 +54,13 @@ export const GET: RequestHandler = async () => {
 			tags: tagsBySite[site.id] || []
 		}));
 		
-		// Group sites by category
+		// Group sites by category (already sorted alphabetically)
 		const bookmarksByCategory: Record<string, typeof sitesWithTags> = {};
 		
 		categories.forEach(cat => {
 			const categorySites = sitesWithTags.filter(site => site.categoryId === cat.id);
 			if (categorySites.length > 0) {
+				// Sites are already sorted alphabetically from the query
 				bookmarksByCategory[cat.name] = categorySites;
 			}
 		});
