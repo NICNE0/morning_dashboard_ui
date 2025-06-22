@@ -25,3 +25,33 @@ export const GET: RequestHandler = async () => {
 		return json({ error: 'Failed to fetch bookmarks' }, { status: 500 });
 	}
 };
+
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const { name, url, description, categoryId } = await request.json();
+		
+		if (!name || !name.trim()) {
+			return json({ error: 'Site name is required' }, { status: 400 });
+		}
+		
+		if (!url || !url.trim()) {
+			return json({ error: 'URL is required' }, { status: 400 });
+		}
+		
+		if (!categoryId) {
+			return json({ error: 'Category is required' }, { status: 400 });
+		}
+
+		const result = await db.insert(site).values({
+			name: name.trim(),
+			url: url.trim(),
+			description: description?.trim() || null,
+			categoryId: parseInt(categoryId)
+		}).returning();
+
+		return json(result[0], { status: 201 });
+	} catch (err) {
+		console.error('Error creating site:', err);
+		return json({ error: 'Failed to create site' }, { status: 500 });
+	}
+};
