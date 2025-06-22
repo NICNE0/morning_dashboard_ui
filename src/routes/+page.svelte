@@ -100,6 +100,13 @@
 	let editNewTagInput = '';
 	let editShowTagSuggestions = false;
 	let editFilteredTags: Tag[] = [];
+
+  function scrollToTop() {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }
 	
 	function scrollToCategory(categoryName: string) {
 		// Toggle the category if it's collapsed
@@ -117,7 +124,7 @@
 				const elementRect = element.getBoundingClientRect();
 				const viewportHeight = window.innerHeight;
 				const stickyHeaderHeight = 120; // Approximate height of sticky header
-				const targetPosition = window.pageYOffset + elementRect.top - (viewportHeight * 0.4) - stickyHeaderHeight;
+				const targetPosition = window.pageYOffset + elementRect.top - (viewportHeight * 0) - stickyHeaderHeight;
 				
 				window.scrollTo({
 					top: targetPosition,
@@ -425,7 +432,7 @@
 			const categoryNames = Object.keys(bookmarksByCategory);
 			collapsedCategories = {};
 			categoryNames.forEach((name, index) => {
-				collapsedCategories[name] = index >= 2; // Collapse categories after the first two
+				collapsedCategories[name] = false; // Collapse categories after the first two
 			});
 			
 			// Initialize filtered bookmarks and available tags
@@ -597,10 +604,10 @@
 				<button on:click={() => showTagFiltering = !showTagFiltering} class="btn btn-filter" class:active={showTagFiltering}>
 					🏷️ Tag Filters {tagFilters.length > 0 ? `(${tagFilters.length})` : ''}
 				</button>
-				<button on:click={() => showCategoryForm = !showCategoryForm} class="btn btn-secondary">
+				<button on:click={() => { showCategoryForm = !showCategoryForm; if (showCategoryForm) scrollToTop(); }} class="btn btn-secondary">
 					✨ Add Category
 				</button>
-				<button on:click={() => showSiteForm = !showSiteForm} class="btn btn-primary">
+				<button on:click={() => { showSiteForm = !showSiteForm; if (showSiteForm) scrollToTop(); }} class="btn btn-primary">
 					🔖 Add Bookmark
 				</button>
 			</div>
@@ -1214,9 +1221,9 @@
 		height: fit-content;
 		max-height: calc(100vh - 140px);
 		overflow-y: auto;
-		background: rgba(255, 255, 255, 0.95);
+		/* background: rgba(255, 255, 255, 0); */
 		backdrop-filter: blur(20px);
-		border: 1px solid rgba(0, 0, 0, 0.1);
+		/* border: 1px solid rgba(0, 0, 0, 0.1); */
 		border-radius: 8px;
 		padding: 1.5rem;
 	}
@@ -1229,8 +1236,8 @@
 
 	.sidebar-header h3 {
 		margin: 0;
-		color: #333;
-		font-size: 1rem;
+		color: white;
+		font-size: 1.5rem;
 		font-weight: 600;
 	}
 
@@ -1243,7 +1250,7 @@
 	.category-nav-link {
 		display: block;
 		padding: 0.5rem 0;
-		color: #666;
+		color:white;
 		text-decoration: none;
 		font-size: 0.9rem;
 		border-left: 3px solid transparent;
