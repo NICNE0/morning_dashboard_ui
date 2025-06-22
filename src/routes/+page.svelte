@@ -139,7 +139,7 @@
 
 <main>
 	<header>
-		<h1>📚 Bookmark Manager</h1>
+		<h1>📚 My Bookmark Manager</h1>
 		<div class="actions">
 			<button on:click={() => showCategoryForm = !showCategoryForm} class="btn btn-secondary">
 				✨ Add Category
@@ -255,7 +255,9 @@
 													on:click={(e) => toggleCard(site.id, e)}
 													title={expandedCards[site.id] ? 'Collapse' : 'Expand'}
 												>
-													<span class="expand-icon" class:expanded={expandedCards[site.id]}>▼</span>
+													<span class="expand-icon" class:expanded={expandedCards[site.id]}>
+														{expandedCards[site.id] ? '▼' : '◀'}
+													</span>
 												</button>
 											{/if}
 										</div>
@@ -529,7 +531,6 @@
 		border-radius: 8px;
 	}
 	
-	
 	.category-toggle {
 		font-size: 1.2rem;
 		transition: color 0.3s ease;
@@ -556,7 +557,7 @@
 	.bookmark-grid {
 		display: grid;
 		gap: 1rem;
-		grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 	}
 	
 	.bookmark-card {
@@ -564,42 +565,85 @@
 		backdrop-filter: blur(20px);
 		border: 1px solid rgba(255, 255, 255, 0.1);
 		border-radius: 12px;
-		padding: 1rem;
 		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 		cursor: pointer;
 		position: relative;
 		overflow: hidden;
-		height: fit-content;
+		height: auto;
+		min-height: 50px;
 	}
 	
-	.bookmark-card::before {
-		content: '';
+	.bookmark-card.expanded {
+		height: auto;
+	}
+	
+	.bookmark-compact {
+		padding: 0.75rem;
+		position: relative;
+	}
+	
+	.bookmark-expanded {
+		padding: 0 0.75rem 0.75rem 0.75rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.1);
+		background: rgba(20, 20, 20, 0.3);
+		animation: expandIn 0.3s ease-out;
+	}
+	
+	@keyframes expandIn {
+		from {
+			opacity: 0;
+			max-height: 0;
+			padding-top: 0;
+			padding-bottom: 0;
+		}
+		to {
+			opacity: 1;
+			max-height: 200px;
+			padding-top: 0.75rem;
+			padding-bottom: 0.75rem;
+		}
+	}
+	
+	.expand-btn {
 		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		height: 3px;
-		background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1);
-		opacity: 0;
-		transition: opacity 0.3s ease;
+		top: 50%;
+		right: 0.75rem;
+		transform: translateY(-50%);
+		background: rgba(78, 205, 196, 0.2);
+		border: 1px solid rgba(78, 205, 196, 0.3);
+		border-radius: 6px;
+		width: 20px;
+		height: 20px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		z-index: 10;
 	}
 	
-	.bookmark-card:hover::before {
-		opacity: 1;
+	.expand-btn:hover {
+		background: rgba(78, 205, 196, 0.4);
+		border-color: rgba(78, 205, 196, 0.6);
+		transform: translateY(-50%) scale(1.1);
 	}
 	
-	.bookmark-card:hover {
-		transform: translateY(-4px) scale(1.02);
-		box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-		border-color: rgba(78, 205, 196, 0.3);
-		background: rgba(40, 40, 40, 0.8);
+	.expand-icon {
+		font-size: 0.6rem;
+		color: #4ecdc4;
+		transition: transform 0.3s ease;
+		line-height: 1;
+	}
+	
+	.expand-icon.expanded {
+		transform: rotate(90deg);
 	}
 	
 	.bookmark-header {
 		display: flex;
-		align-items: flex-start;
+		align-items: center;
 		gap: 0.75rem;
-		margin-bottom: 0.5rem;
+		margin-right: 1.75rem; /* Space for expand button */
 	}
 	
 	.bookmark-card::before {
