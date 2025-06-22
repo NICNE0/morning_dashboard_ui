@@ -28,11 +28,33 @@
 	let siteForm = { name: '', url: '', description: '', categoryId: '' };
 	let submitting = false;
 	
+	// Edit states
+	let editingBookmark: Site | null = null;
+	let showEditForm = false;
+	
+	// Search functionality
+	let searchQuery = '';
+	let filteredBookmarksByCategory: Record<string, Site[]> = {};
+	
+	// Toast notifications
+	let toastMessage = '';
+	let toastType: 'success' | 'error' = 'success';
+	let showToast = false;
+	
 	// Collapsible categories state
 	let collapsedCategories: Record<string, boolean> = {};
 	
 	// Collapsible cards state
 	let expandedCards: Record<number, boolean> = {};
+	
+	function showToastNotification(message: string, type: 'success' | 'error' = 'success') {
+		toastMessage = message;
+		toastType = type;
+		showToast = true;
+		setTimeout(() => {
+			showToast = false;
+		}, 3000);
+	}
 	
 	function toggleCategory(categoryName: string) {
 		collapsedCategories[categoryName] = !collapsedCategories[categoryName];
@@ -43,6 +65,49 @@
 		event.stopPropagation(); // Prevent opening the URL
 		expandedCards[cardId] = !expandedCards[cardId];
 		expandedCards = { ...expandedCards }; // Trigger reactivity
+	}
+	
+	function startEditBookmark(bookmark: Site, event: MouseEvent) {
+		event.stopPropagation();
+		editingBookmark = { ...bookmark };
+		showEditForm = true;
+	}
+	
+	function cancelEdit() {
+		editingBookmark = null;
+		showEditForm = false;
+	}
+	
+	function filterBookmarks(query: string) {
+		if (!query.trim()) {
+			filteredBookmarksByCategory = bookmarksByCategory;
+			return;
+		}
+		
+		const filtered: Record<string, Site[]> = {};
+		const lowercaseQuery = query.toLowerCase();
+		
+		Object.entries(bookmarksByCategory).forEach(([categoryName, sites]) => {
+			const matchingSites = sites.filter(site => 
+				site.name.toLowerCase().includes(lowercaseQuery) ||
+				site.description?.toLowerCase().includes(lowercaseQuery) ||
+				site.url.toLowerCase().includes(lowercaseQuery) ||
+				categoryName.toLowerCase().includes(lowercaseQuery)
+			);
+			
+			if (matchingSites.length > 0) {
+				filtered[categoryName] = matchingSites;
+			}
+		});
+		
+		filteredBookmarksByCategory = filtered;
+	}
+	
+	// React to search query changes
+	$: filterBookmarks(searchQuery);
+	
+	function getSiteFallbackLetter(siteName: string): string {
+		return siteName.charAt(0).toUpperCase();
 	}
 	
 	function getFaviconUrl(url: string): string {
@@ -71,6 +136,9 @@
 			if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
 			categories = await categoriesResponse.json();
 			
+			// Initialize filtered bookmarks
+			filteredBookmarksByCategory = bookmarksByCategory;
+			
 			loading = false;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Unknown error';
@@ -90,16 +158,17 @@
 			});
 
 			if (!response.ok) {
-				const error = await response.json();
-				throw new Error(error.error || 'Failed to create category');
+				const errorData = await response.json();
+				throw new Error(errorData.error || 'Failed to create category');
 			}
 
 			// Reset form and reload data
 			categoryForm = { name: '', description: '' };
 			showCategoryForm = false;
 			await loadData();
+			showToastNotification('Category created successfully!');
 		} catch (err) {
-			alert(err instanceof Error ? err.message : 'Failed to create category');
+			showToastNotification(err instanceof Error ? err.message : 'Failed to create category', 'error');
 		} finally {
 			submitting = false;
 		}
@@ -117,18 +186,72 @@
 			});
 
 			if (!response.ok) {
-				const error = await response.json();
-				throw new Error(error.error || 'Failed to create site');
+				const errorData = await response.json();
+				throw new Error(errorData.error || 'Failed to create bookmark');
 			}
 
 			// Reset form and reload data
 			siteForm = { name: '', url: '', description: '', categoryId: '' };
 			showSiteForm = false;
 			await loadData();
+			showToastNotification('Bookmark created successfully!');
 		} catch (err) {
-			alert(err instanceof Error ? err.message : 'Failed to create site');
+			showToastNotification(err instanceof Error ? err.message : 'Failed to create bookmark', 'error');
 		} finally {
 			submitting = false;
+		}
+	}
+	
+	async function updateBookmark() {
+		if (!editingBookmark) return;
+		
+		try {
+			submitting = true;
+			const response = await fetch(`/api/bookmarks/${editingBookmark.id}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					name: editingBookmark.name,
+					url: editingBookmark.url,
+					description: editingBookmark.description,
+					categoryId: editingBookmark.categoryId
+				})
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || 'Failed to update bookmark');
+			}
+
+			cancelEdit();
+			await loadData();
+			showToastNotification('Bookmark updated successfully!');
+		} catch (err) {
+			showToastNotification(err instanceof Error ? err.message : 'Failed to update bookmark', 'error');
+		} finally {
+			submitting = false;
+		}
+	}
+	
+	async function deleteBookmark(bookmarkId: number, event: MouseEvent) {
+		event.stopPropagation();
+		
+		if (!confirm('Are you sure you want to delete this bookmark?')) return;
+		
+		try {
+			const response = await fetch(`/api/bookmarks/${bookmarkId}`, {
+				method: 'DELETE'
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || 'Failed to delete bookmark');
+			}
+
+			await loadData();
+			showToastNotification('Bookmark deleted successfully!');
+		} catch (err) {
+			showToastNotification(err instanceof Error ? err.message : 'Failed to delete bookmark', 'error');
 		}
 	}
 </script>
@@ -149,6 +272,29 @@
 			</button>
 		</div>
 	</header>
+
+	<!-- Search Bar -->
+	<div class="search-container">
+		<div class="search-input-wrapper">
+			<span class="search-icon">🔍</span>
+			<input
+				type="text"
+				bind:value={searchQuery}
+				placeholder="Search bookmarks..."
+				class="search-input"
+			/>
+			{#if searchQuery}
+				<button class="clear-search" on:click={() => searchQuery = ''}>✕</button>
+			{/if}
+		</div>
+	</div>
+
+	<!-- Toast Notification -->
+	{#if showToast}
+		<div class="toast toast-{toastType}">
+			{toastMessage}
+		</div>
+	{/if}
 
 	<!-- Category Form -->
 	{#if showCategoryForm}
@@ -209,6 +355,42 @@
 			</form>
 		</div>
 	{/if}
+
+	<!-- Edit Form -->
+	{#if showEditForm && editingBookmark}
+		<div class="form-container">
+			<h3>✏️ Edit Bookmark</h3>
+			<form on:submit|preventDefault={updateBookmark}>
+				<input
+					bind:value={editingBookmark.name}
+					placeholder="Site name"
+					required
+				/>
+				<input
+					bind:value={editingBookmark.url}
+					placeholder="URL (https://example.com)"
+					type="url"
+					required
+				/>
+				<select bind:value={editingBookmark.categoryId} required>
+					<option value="">Select a category</option>
+					{#each categories as category}
+						<option value={category.id}>{category.name}</option>
+					{/each}
+				</select>
+				<input
+					bind:value={editingBookmark.description}
+					placeholder="Description (optional)"
+				/>
+				<div class="form-actions">
+					<button type="submit" disabled={submitting || !editingBookmark.name.trim() || !editingBookmark.url.trim()}>
+						{submitting ? 'Updating...' : 'Update Bookmark'}
+					</button>
+					<button type="button" on:click={cancelEdit}>Cancel</button>
+				</div>
+			</form>
+		</div>
+	{/if}
 	
 	{#if loading}
 		<div class="loading">
@@ -219,7 +401,7 @@
 		<p class="error">❌ Error: {error}</p>
 	{:else}
 		<div class="bookmark-container">
-			{#each Object.entries(bookmarksByCategory) as [categoryName, sites]}
+			{#each Object.entries(filteredBookmarksByCategory) as [categoryName, sites]}
 				{#if sites.length > 0}
 					<section class="category-section">
 						<h2 class="category-header" on:click={() => toggleCategory(categoryName)}>
@@ -236,12 +418,20 @@
 									<div class="bookmark-card" class:expanded={expandedCards[site.id]}>
 										<div class="bookmark-compact" on:click={() => window.open(site.url, '_blank')}>
 											<div class="bookmark-header">
-												<img 
-													src={getFaviconUrl(site.url)} 
-													alt="{site.name} logo" 
-													class="site-logo"
-													on:error={(e) => e.currentTarget.style.display = 'none'}
-												/>
+												<div class="site-logo-container">
+													<img 
+														src={getFaviconUrl(site.url)} 
+														alt="{site.name} logo" 
+														class="site-logo"
+														on:error={(e) => {
+															e.currentTarget.style.display = 'none';
+															e.currentTarget.nextElementSibling.style.display = 'flex';
+														}}
+													/>
+													<div class="site-logo-fallback" style="display: none;">
+														{getSiteFallbackLetter(site.name)}
+													</div>
+												</div>
 												<div class="bookmark-info">
 													<h3>{site.name}</h3>
 													<a href={site.url} target="_blank" rel="noopener noreferrer" on:click|stopPropagation>
@@ -249,17 +439,34 @@
 													</a>
 												</div>
 											</div>
-											{#if site.description}
+											
+											<div class="bookmark-actions">
 												<button 
-													class="expand-btn" 
-													on:click={(e) => toggleCard(site.id, e)}
-													title={expandedCards[site.id] ? 'Collapse' : 'Expand'}
+													class="action-btn edit-btn" 
+													on:click={(e) => startEditBookmark(site, e)}
+													title="Edit bookmark"
 												>
-													<span class="expand-icon" class:expanded={expandedCards[site.id]}>
-														{expandedCards[site.id] ? '▼' : '◀'}
-													</span>
+													✏️
 												</button>
-											{/if}
+												<button 
+													class="action-btn delete-btn" 
+													on:click={(e) => deleteBookmark(site.id, e)}
+													title="Delete bookmark"
+												>
+													🗑️
+												</button>
+												{#if site.description}
+													<button 
+														class="expand-btn" 
+														on:click={(e) => toggleCard(site.id, e)}
+														title={expandedCards[site.id] ? 'Collapse' : 'Expand'}
+													>
+														<span class="expand-icon" class:expanded={expandedCards[site.id]}>
+															{expandedCards[site.id] ? '▼' : '◀'}
+														</span>
+													</button>
+												{/if}
+											</div>
 										</div>
 										
 										{#if site.description && expandedCards[site.id]}
@@ -274,6 +481,20 @@
 					</section>
 				{/if}
 			{/each}
+			
+			{#if Object.keys(filteredBookmarksByCategory).length === 0 && !loading}
+				<div class="empty-state">
+					{#if searchQuery}
+						<h3>🔍 No bookmarks found</h3>
+						<p>No bookmarks match your search for "{searchQuery}"</p>
+						<button class="btn btn-secondary" on:click={() => searchQuery = ''}>Clear search</button>
+					{:else}
+						<h3>📚 No bookmarks yet</h3>
+						<p>Start building your bookmark collection!</p>
+						<button class="btn btn-primary" on:click={() => showSiteForm = true}>Add your first bookmark</button>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	{/if}
 </main>
@@ -298,9 +519,125 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 4rem;
+		margin-bottom: 2rem;
 		padding: 2rem 0;
 		border-bottom: 1px solid #333;
+	}
+	
+	/* Search Bar */
+	.search-container {
+		margin-bottom: 3rem;
+	}
+	
+	.search-input-wrapper {
+		position: relative;
+		max-width: 500px;
+		margin: 0 auto;
+	}
+	
+	.search-icon {
+		position: absolute;
+		left: 1rem;
+		top: 50%;
+		transform: translateY(-50%);
+		font-size: 1.2rem;
+		color: rgba(255, 255, 255, 0.5);
+		pointer-events: none;
+	}
+	
+	.search-input {
+		width: 100%;
+		padding: 1rem 1rem 1rem 3rem;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 12px;
+		font-size: 1.1rem;
+		background: rgba(30, 30, 30, 0.8);
+		color: #fff;
+		backdrop-filter: blur(20px);
+		transition: all 0.3s ease;
+	}
+	
+	.search-input:focus {
+		outline: none;
+		border-color: #4ecdc4;
+		box-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
+		transform: scale(1.02);
+	}
+	
+	.search-input::placeholder {
+		color: rgba(255, 255, 255, 0.5);
+	}
+	
+	.clear-search {
+		position: absolute;
+		right: 1rem;
+		top: 50%;
+		transform: translateY(-50%);
+		background: none;
+		border: none;
+		color: rgba(255, 255, 255, 0.5);
+		cursor: pointer;
+		font-size: 1.2rem;
+		transition: color 0.3s ease;
+	}
+	
+	.clear-search:hover {
+		color: #ff6b6b;
+	}
+	
+	/* Toast Notifications */
+	.toast {
+		position: fixed;
+		top: 2rem;
+		right: 2rem;
+		padding: 1rem 1.5rem;
+		border-radius: 8px;
+		color: white;
+		font-weight: 600;
+		z-index: 1000;
+		animation: slideInRight 0.3s ease-out;
+		max-width: 300px;
+	}
+	
+	.toast-success {
+		background: linear-gradient(135deg, #00b894, #00a085);
+		border: 1px solid #00a085;
+	}
+	
+	.toast-error {
+		background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+		border: 1px solid #ee5a24;
+	}
+	
+	@keyframes slideInRight {
+		from {
+			opacity: 0;
+			transform: translateX(100%);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(0);
+		}
+	}
+	
+	/* Empty State */
+	.empty-state {
+		text-align: center;
+		padding: 4rem 2rem;
+		margin: 2rem 0;
+	}
+	
+	.empty-state h3 {
+		font-size: 1.8rem;
+		margin-bottom: 1rem;
+		color: rgba(255, 255, 255, 0.8);
+	}
+	
+	.empty-state p {
+		font-size: 1.1rem;
+		color: rgba(255, 255, 255, 0.6);
+		margin-bottom: 2rem;
+		padding: 0;
 	}
 	
 	h1 {
@@ -580,6 +917,9 @@
 	.bookmark-compact {
 		padding: 0.75rem;
 		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 1rem;
 	}
 	
 	.bookmark-expanded {
@@ -604,11 +944,80 @@
 		}
 	}
 	
-	.expand-btn {
+	.bookmark-header {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex: 1;
+	}
+	
+	.site-logo-container {
+		position: relative;
+		width: 20px;
+		height: 20px;
+		flex-shrink: 0;
+	}
+	
+	.site-logo {
+		width: 20px;
+		height: 20px;
+		border-radius: 4px;
+		background: rgba(255, 255, 255, 0.1);
+	}
+	
+	.site-logo-fallback {
 		position: absolute;
-		top: 50%;
-		right: 0.75rem;
-		transform: translateY(-50%);
+		top: 0;
+		left: 0;
+		width: 20px;
+		height: 20px;
+		border-radius: 4px;
+		background: rgba(78, 205, 196, 0.3);
+		color: #4ecdc4;
+		font-size: 0.7rem;
+		font-weight: 600;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	
+	.bookmark-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		opacity: 0;
+		transition: opacity 0.3s ease;
+	}
+	
+	.bookmark-card:hover .bookmark-actions {
+		opacity: 1;
+	}
+	
+	.action-btn {
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 6px;
+		width: 24px;
+		height: 24px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		font-size: 0.7rem;
+	}
+	
+	.edit-btn:hover {
+		background: rgba(255, 193, 7, 0.3);
+		border-color: rgba(255, 193, 7, 0.5);
+	}
+	
+	.delete-btn:hover {
+		background: rgba(220, 53, 69, 0.3);
+		border-color: rgba(220, 53, 69, 0.5);
+	}
+	
+	.expand-btn {
 		background: rgba(78, 205, 196, 0.2);
 		border: 1px solid rgba(78, 205, 196, 0.3);
 		border-radius: 6px;
@@ -619,13 +1028,12 @@
 		justify-content: center;
 		cursor: pointer;
 		transition: all 0.3s ease;
-		z-index: 10;
 	}
 	
 	.expand-btn:hover {
 		background: rgba(78, 205, 196, 0.4);
 		border-color: rgba(78, 205, 196, 0.6);
-		transform: translateY(-50%) scale(1.1);
+		transform: scale(1.1);
 	}
 	
 	.expand-icon {
@@ -637,13 +1045,6 @@
 	
 	.expand-icon.expanded {
 		transform: rotate(90deg);
-	}
-	
-	.bookmark-header {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		margin-right: 1.75rem; /* Space for expand button */
 	}
 	
 	.bookmark-card::before {
@@ -667,14 +1068,6 @@
 		box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
 		border-color: rgba(78, 205, 196, 0.3);
 		background: rgba(40, 40, 40, 0.8);
-	}
-	
-	.site-logo {
-		width: 20px;
-		height: 20px;
-		border-radius: 4px;
-		flex-shrink: 0;
-		background: rgba(255, 255, 255, 0.1);
 	}
 	
 	.bookmark-info {
@@ -769,6 +1162,10 @@
 		
 		.form-actions {
 			flex-direction: column;
+		}
+		
+		.bookmark-actions {
+			opacity: 1;
 		}
 	}
 </style>
