@@ -31,9 +31,18 @@
 	// Collapsible categories state
 	let collapsedCategories: Record<string, boolean> = {};
 	
+	// Collapsible cards state
+	let expandedCards: Record<number, boolean> = {};
+	
 	function toggleCategory(categoryName: string) {
 		collapsedCategories[categoryName] = !collapsedCategories[categoryName];
 		collapsedCategories = { ...collapsedCategories }; // Trigger reactivity
+	}
+	
+	function toggleCard(cardId: number, event: MouseEvent) {
+		event.stopPropagation(); // Prevent opening the URL
+		expandedCards[cardId] = !expandedCards[cardId];
+		expandedCards = { ...expandedCards }; // Trigger reactivity
 	}
 	
 	function getFaviconUrl(url: string): string {
@@ -215,7 +224,7 @@
 					<section class="category-section">
 						<h2 class="category-header" on:click={() => toggleCategory(categoryName)}>
 							<span class="category-toggle" class:collapsed={collapsedCategories[categoryName]}>
-								▼
+								{collapsedCategories[categoryName] ? '▶' : '▼'}
 							</span>
 							{categoryName}
 							<span class="category-count">({sites.length})</span>
@@ -224,23 +233,37 @@
 						{#if !collapsedCategories[categoryName]}
 							<div class="bookmark-grid">
 								{#each sites as site}
-									<div class="bookmark-card" on:click={() => window.open(site.url, '_blank')}>
-										<div class="bookmark-header">
-											<img 
-												src={getFaviconUrl(site.url)} 
-												alt="{site.name} logo" 
-												class="site-logo"
-												on:error={(e) => e.currentTarget.style.display = 'none'}
-											/>
-											<div class="bookmark-info">
-												<h3>{site.name}</h3>
-												<a href={site.url} target="_blank" rel="noopener noreferrer" on:click|stopPropagation>
-													{new URL(site.url).hostname}
-												</a>
+									<div class="bookmark-card" class:expanded={expandedCards[site.id]}>
+										<div class="bookmark-compact" on:click={() => window.open(site.url, '_blank')}>
+											<div class="bookmark-header">
+												<img 
+													src={getFaviconUrl(site.url)} 
+													alt="{site.name} logo" 
+													class="site-logo"
+													on:error={(e) => e.currentTarget.style.display = 'none'}
+												/>
+												<div class="bookmark-info">
+													<h3>{site.name}</h3>
+													<a href={site.url} target="_blank" rel="noopener noreferrer" on:click|stopPropagation>
+														{new URL(site.url).hostname}
+													</a>
+												</div>
 											</div>
+											{#if site.description}
+												<button 
+													class="expand-btn" 
+													on:click={(e) => toggleCard(site.id, e)}
+													title={expandedCards[site.id] ? 'Collapse' : 'Expand'}
+												>
+													<span class="expand-icon" class:expanded={expandedCards[site.id]}>▼</span>
+												</button>
+											{/if}
 										</div>
-										{#if site.description}
-											<p class="bookmark-description">{site.description}</p>
+										
+										{#if site.description && expandedCards[site.id]}
+											<div class="bookmark-expanded">
+												<p class="bookmark-description">{site.description}</p>
+											</div>
 										{/if}
 									</div>
 								{/each}
@@ -279,7 +302,7 @@
 	}
 	
 	h1 {
-		font-size: 3rem;
+		font-size: 3.5rem;
 		font-weight: 700;
 		background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1);
 		background-clip: text;
@@ -482,7 +505,7 @@
 	}
 	
 	.category-section h2 {
-		font-size: 1.7rem;
+		font-size: 2.2rem;
 		font-weight: 600;
 		background: linear-gradient(135deg, #4ecdc4, #44a08d);
 		background-clip: text;
@@ -509,12 +532,8 @@
 	
 	.category-toggle {
 		font-size: 1.2rem;
-		transition: transform 0.3s ease;
+		transition: color 0.3s ease;
 		color: #4ecdc4;
-	}
-	
-	.category-toggle.collapsed {
-		transform: rotate(-90deg);
 	}
 	
 	.category-count {
@@ -537,7 +556,7 @@
 	.bookmark-grid {
 		display: grid;
 		gap: 1rem;
-		grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
 	}
 	
 	.bookmark-card {
@@ -550,8 +569,7 @@
 		cursor: pointer;
 		position: relative;
 		overflow: hidden;
-		/* height: fit-content; */
-    height: 120px;
+		height: fit-content;
 	}
 	
 	.bookmark-card::before {
@@ -584,12 +602,34 @@
 		margin-bottom: 0.5rem;
 	}
 	
+	.bookmark-card::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 3px;
+		background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1);
+		opacity: 0;
+		transition: opacity 0.3s ease;
+	}
+	
+	.bookmark-card:hover::before {
+		opacity: 1;
+	}
+	
+	.bookmark-card:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+		border-color: rgba(78, 205, 196, 0.3);
+		background: rgba(40, 40, 40, 0.8);
+	}
+	
 	.site-logo {
-		width: 24px;
-		height: 24px;
+		width: 20px;
+		height: 20px;
 		border-radius: 4px;
 		flex-shrink: 0;
-		margin-top: 2px;
 		background: rgba(255, 255, 255, 0.1);
 	}
 	
@@ -599,9 +639,9 @@
 	}
 	
 	.bookmark-card h3 {
-		margin: 0 0 0.25rem 0;
+		margin: 0 0 0.15rem 0;
 		color: #fff;
-		font-size: 1rem;
+		font-size: 0.9rem;
 		font-weight: 600;
 		line-height: 1.2;
 		overflow: hidden;
@@ -612,28 +652,27 @@
 	.bookmark-card a {
 		color: #4ecdc4;
 		text-decoration: none;
-		font-size: 0.8rem;
+		font-size: 0.75rem;
 		display: block;
 		transition: color 0.3s ease;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+		opacity: 0.8;
 	}
 	
 	.bookmark-card a:hover {
 		color: #ff6b6b;
 		text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+		opacity: 1;
 	}
 	
 	.bookmark-description {
-		color: rgba(255, 255, 255, 0.7);
+		color: rgba(255, 255, 255, 0.8);
 		font-size: 0.8rem;
-		margin: 0.5rem 0 0 0;
-		line-height: 1.3;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
+		margin: 0;
+		line-height: 1.4;
+		padding-top: 0.5rem;
 	}
 	
 	.error {
