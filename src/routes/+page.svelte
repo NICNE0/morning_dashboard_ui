@@ -784,22 +784,15 @@
 	.btn-primary {
 		background: linear-gradient(135deg, #ff6b6b, #ee5a24);
 		color: white;
-		box-shadow: 0 8px 32px rgba(255, 107, 107, 0.3);
 	}
 	
 	.btn-secondary {
 		background: linear-gradient(135deg, #4ecdc4, #44a08d);
 		color: white;
-		box-shadow: 0 8px 32px rgba(78, 205, 196, 0.3);
 	}
 	
 	.btn:hover {
 		transform: translateY(-2px);
-		box-shadow: 0 12px 40px rgba(255, 107, 107, 0.4);
-	}
-	
-	.btn-secondary:hover {
-		box-shadow: 0 12px 40px rgba(78, 205, 196, 0.4);
 	}
 	
 	.form-container {
@@ -885,12 +878,10 @@
 	.form-actions button[type="submit"] {
 		background: linear-gradient(135deg, #00b894, #00a085);
 		color: white;
-		box-shadow: 0 8px 32px rgba(0, 184, 148, 0.3);
 	}
 	
 	.form-actions button[type="submit"]:hover {
 		transform: translateY(-2px);
-		box-shadow: 0 12px 40px rgba(0, 184, 148, 0.4);
 	}
 	
 	.form-actions button[type="button"] {
@@ -944,11 +935,21 @@
 		background-clip: text;
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
-		border-bottom: 3px solid;
-		border-image: linear-gradient(135deg, #4ecdc4, #44a08d) 1;
 		padding-bottom: 1rem;
-		margin-bottom: 2rem;
+		margin: 0;
 		position: relative;
+		border-bottom: 3px solid transparent;
+	}
+	
+	.category-header-container::after {
+		content: '';
+		position: absolute;
+		bottom: -3px;
+		left: 0;
+		right: 120px;
+		height: 3px;
+		background: #4ecdc4;
+		border-radius: 2px;
 	}
 	
 	.category-header {
@@ -975,14 +976,7 @@
 	}
 	
 	.category-section h2::after {
-		content: '';
-		position: absolute;
-		bottom: -3px;
-		left: 0;
-		width: 60px;
-		height: 3px;
-		background: #4ecdc4;
-		border-radius: 2px;
+		/* Removed - now using container::after for consistent width */
 	}
 	
 	.bookmark-grid {
@@ -1155,7 +1149,6 @@
 	}
 	
 	.bookmark-card:hover {
-		transform: translateY(-2px);
 		box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
 		border-color: rgba(78, 205, 196, 0.3);
 		background: rgba(40, 40, 40, 0.8);
