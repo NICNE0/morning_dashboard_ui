@@ -777,9 +777,6 @@
 													<a href={site.url} target="_blank" rel="noopener noreferrer" on:click|stopPropagation>
 														{new URL(site.url).hostname}
 													</a>
-													{#if site.language}
-														<span class="language-badge">{site.language.shortName}</span>
-													{/if}
 												</div>
 											</div>
 											
@@ -817,17 +814,22 @@
 										
 										{#if site.description && expandedCards[site.id]}
 											<div class="bookmark-expanded">
-												<p class="bookmark-description">{site.description}</p>
+												<p class="bookmark-description">&nbsp;Description: <span class="description-badge">{site.description}</span></p>
+                        <p class="bookmark-language">
+                          {#if site.language}
+                              &nbsp;Language: <span class="language-badge">{site.language.name}</span>
+                          {/if}
+                        </p>
+                        {#if site.tags.length > 0}
+                          <div class="bookmark-tags">
+                            {#each site.tags as tag}
+                              <span class="bookmark-tag">{tag.name}</span>
+                            {/each}
+                          </div>
+                        {/if}
 											</div>
 										{/if}
 										
-										{#if site.tags.length > 0}
-											<div class="bookmark-tags">
-												{#each site.tags as tag}
-													<span class="bookmark-tag">{tag.name}</span>
-												{/each}
-											</div>
-										{/if}
 									</div>
 								{/each}
 							</div>
@@ -1509,12 +1511,18 @@
 	}
 	
 	.bookmark-description {
-		color: rgba(255, 255, 255, 0.8);
+		/* color: rgba(255, 255, 255, 0.8); */
+		color:#4ecdc4;
 		font-size: 0.8rem;
 		margin: 0;
 		line-height: 1.4;
-		padding-top: 0.5rem;
+    padding: 0.5rem;
+    text-align:start;
 	}
+
+  .description-badge {
+    color: #e0e0e0;
+  }
 	
 	.error {
 		color: #ff6b6b;
@@ -1537,6 +1545,14 @@
 	}
 
   /* Tags Input Styles */
+  .bookmark-tag{
+    background-color:#c44c20;
+    border-radius: 12px;
+    padding-left: 4px;
+    padding-right: 4px;
+    padding-bottom: 3px;
+  }
+
   .tags-section {
     margin-top: 1rem;
   }
@@ -1656,7 +1672,23 @@
     color: #fff;
   }
 
-	
+  .language-badge {
+    text-transform: capitalize;
+    color: #e0e0e0;
+  }
+
+  .bookmark-language {
+    color:#4ecdc4;
+		font-size: 0.8rem;
+		margin: 0;
+		line-height: 1.4;
+		padding-top: 0.5rem;
+		padding-left: 0.5rem;
+		padding-right: 0.5rem;
+		padding-bottom: 1rem;
+    text-align:start;
+	}
+
 	/* Responsive design */
 	@media (max-width: 768px) {
 		main {
