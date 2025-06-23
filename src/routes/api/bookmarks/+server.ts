@@ -2,7 +2,7 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db/index.js';
 import { category, site, language, tag, siteToTag } from '$lib/server/db/schema.js';
-import { eq, and, or, isNull } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -41,7 +41,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		.where(eq(site.userId, userId))
 		.orderBy(site.name);
 		
-		// Get tags for user's sites - include userId in the selection
+		// Get tags for user's sites
 		const siteTags = await db.select({
 			siteId: siteToTag.siteId,
 			tag: {
@@ -127,20 +127,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ error: 'Category not found or access denied' }, { status: 403 });
 		}
 
-		// Verify language belongs to user or is global (if provided)
+		// Verify language exists (if provided) - no user check needed since languages are global
 		if (languageId) {
-			const userLanguage = await db
+			const languageExists = await db
 				.select()
 				.from(language)
-				.where(and(
-					eq(language.id, parseInt(languageId)),
-					// Language belongs to user OR is global (userId is null)
-					or(eq(language.userId, userId), isNull(language.userId))
-				))
+				.where(eq(language.id, parseInt(languageId)))
 				.limit(1);
 				
-			if (userLanguage.length === 0) {
-				return json({ error: 'Language not found or access denied' }, { status: 403 });
+			if (languageExists.length === 0) {
+				return json({ error: 'Language not found' }, { status: 403 });
 			}
 		}
 

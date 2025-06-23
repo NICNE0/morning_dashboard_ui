@@ -21,20 +21,14 @@ export const session = pgTable('session', {
 	expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull()
 });
 
-// Language table - can be shared across users OR user-specific
+// Language table - GLOBAL, no user_id
 export const language = pgTable('language', {
 	id: serial('id').primaryKey(),
-	name: text('name').notNull(),
-	shortName: text('short_name').notNull(),
-	userId: text('user_id')
-		.references(() => user.id, { onDelete: 'cascade' }), // NULL = global language
-}, (table) => ({
-	// Ensure unique names per user (or globally if userId is null)
-	uniqueLanguagePerUser: unique().on(table.name, table.userId),
-	uniqueShortNamePerUser: unique().on(table.shortName, table.userId)
-}));
+	name: text('name').notNull().unique(),
+	shortName: text('short_name').notNull().unique()
+});
 
-// Tag table - user-specific
+// Tag table - user-specific, user_id is mandatory
 export const tag = pgTable('tag', {
 	id: serial('id').primaryKey(),
 	name: text('name').notNull(),
@@ -46,7 +40,7 @@ export const tag = pgTable('tag', {
 	uniqueTagPerUser: unique().on(table.name, table.userId)
 }));
 
-// Category table - user-specific
+// Category table - user-specific, user_id is mandatory
 export const category = pgTable('category', {
 	id: serial('id').primaryKey(),
 	name: text('name').notNull(),
@@ -59,7 +53,7 @@ export const category = pgTable('category', {
 	uniqueCategoryPerUser: unique().on(table.name, table.userId)
 }));
 
-// Site/Bookmark table - user-specific
+// Site/Bookmark table - user-specific, user_id is mandatory
 export const site = pgTable('site', {
 	id: serial('id').primaryKey(),
 	name: text('name').notNull(),
@@ -90,12 +84,11 @@ export const siteToTag = pgTable('site_to_tag', {
 });
 
 // Define relationships
-export const userRelations = relations(user, ({ many, one }) => ({
+export const userRelations = relations(user, ({ many }) => ({
 	sessions: many(session),
 	sites: many(site),
 	categories: many(category),
-	tags: many(tag),
-	languages: many(language)
+	tags: many(tag)
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -105,12 +98,8 @@ export const sessionRelations = relations(session, ({ one }) => ({
 	})
 }));
 
-export const languageRelations = relations(language, ({ many, one }) => ({
-	sites: many(site),
-	user: one(user, {
-		fields: [language.userId],
-		references: [user.id]
-	})
+export const languageRelations = relations(language, ({ many }) => ({
+	sites: many(site)
 }));
 
 export const tagRelations = relations(tag, ({ many, one }) => ({
@@ -185,5 +174,4 @@ export type UserWithData = User & {
 	sites: SiteWithRelations[];
 	categories: Category[];
 	tags: Tag[];
-	languages: Language[];
 };

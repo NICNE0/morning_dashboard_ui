@@ -1,7 +1,7 @@
 // src/routes/api/bookmarks/[id]/+server.ts
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db/index.js';
-import { site, siteToTag, category, tag } from '$lib/server/db/schema.js';
+import { site, siteToTag, category, tag, language } from '$lib/server/db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
@@ -57,6 +57,19 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 			
 		if (userCategory.length === 0) {
 			return json({ error: 'Category not found or access denied' }, { status: 403 });
+		}
+
+		// Verify language exists (if provided) - no user check needed since languages are global
+		if (languageId) {
+			const languageExists = await db
+				.select()
+				.from(language)
+				.where(eq(language.id, parseInt(languageId)))
+				.limit(1);
+				
+			if (languageExists.length === 0) {
+				return json({ error: 'Language not found' }, { status: 403 });
+			}
 		}
 
 		// Update the site
