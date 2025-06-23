@@ -76,8 +76,8 @@
 </main>
 
 <style>
-	:global(body) {
-		background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+	/* Only apply these styles to the login page */
+	.login-container {
 		color: #e0e0e0;
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 		margin: 0;
@@ -85,12 +85,15 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-	}
-
-	.login-container {
 		width: 100%;
 		max-width: 400px;
 		padding: 2rem;
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		margin: auto;
 	}
 
 	.login-card {
@@ -101,6 +104,7 @@
 		padding: 3rem;
 		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 		animation: slideIn 0.3s ease-out;
+		width: 100%;
 	}
 
 	@keyframes slideIn {

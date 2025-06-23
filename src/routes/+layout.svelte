@@ -9,50 +9,39 @@
 	const isAuthPage = $derived($page.url.pathname === '/login' || $page.url.pathname === '/register');
 </script>
 
-{#if !isAuthPage && data?.user}
-	<nav class="main-nav">
-		<div class="nav-content">
-			<div class="nav-brand">
-				<!-- <span class="nav-icon">📚</span> -->
-				<!-- <span class="nav-title">Bookmark Manager</span> -->
-			</div>
-			
-			<div class="nav-user">
-				<span class="user-info">Welcome, {data.user.username}!</span>
-				<a href="/logout" class="logout-btn">Logout</a>
-			</div>
-		</div>
-	</nav>
+{#if !isAuthPage}
+	<div class="top-user-bar">
+		{#if data?.user}
+			<span class="user-info">Welcome, {data.user.username}!</span>
+		{/if}
+		<a href="/logout" class="logout-btn">Logout</a>
+	</div>
 {/if}
 
 {@render children()}
 
 <style>
-	.main-nav {
-		top: 0;
-		z-index: 1000;
-		padding: 1rem 0;
+	/* Reset any conflicting global styles when logged in */
+	:global(body) {
+		background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+		color: #e0e0e0;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+		margin: 0;
+		min-height: 100vh;
+		/* Remove any flex centering that might be applied by auth pages */
+		display: block !important;
+		align-items: initial !important;
+		justify-content: initial !important;
 	}
 
-	.nav-content {
-		max-width: 1400px;
-		margin: 0 auto;
-		/* padding: 0 2rem; */
+	.top-user-bar {
 		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-
-	.nav-brand {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-	}
-
-	.nav-user {
-		display: flex;
+		justify-content: flex-end;
 		align-items: center;
 		gap: 1rem;
+		padding: 1rem 2rem;
+		max-width: 1400px;
+		margin: 0 auto;
 	}
 
 	.user-info {
@@ -78,11 +67,8 @@
 	}
 
 	@media (max-width: 768px) {
-		.nav-content {
-			padding: 0 1rem;
-		}
-		
-		.nav-user {
+		.top-user-bar {
+			padding: 1rem;
 			flex-direction: column;
 			gap: 0.5rem;
 			align-items: flex-end;

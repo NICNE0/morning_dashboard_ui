@@ -12,9 +12,9 @@
 	<title>Register - Bookmark Manager</title>
 </svelte:head>
 
-<main class="login-container">
-	<div class="login-card">
-		<div class="login-header">
+<main class="register-container">
+	<div class="register-card">
+		<div class="register-header">
 			<h1>📚 Bookmark Manager</h1>
 			<p>Create your account</p>
 		</div>
@@ -26,11 +26,8 @@
 				loading = true;
 				return async ({ result, update }) => {
 					loading = false;
-					if (result.type === 'redirect') {
-						goto('/');
-					} else {
-						update();
-					}
+					// Always update to get form data including success messages
+					await update();
 				};
 			}}
 		>
@@ -76,22 +73,31 @@
 					{form.error}
 				</div>
 			{/if}
-			
-			<button type="submit" disabled={loading} class="login-btn">
-				{loading ? 'Creating Account...' : 'Create Account'}
-			</button>
+
+			{#if form?.success || form?.message}
+				<div class="success-message">
+					{form.message || 'Account created successfully!'}
+					<div class="success-actions">
+						<a href="/login" class="login-link">Go to Login</a>
+					</div>
+				</div>
+			{:else}
+				<button type="submit" disabled={loading} class="register-btn">
+					{loading ? 'Creating Account...' : 'Create Account'}
+				</button>
+			{/if}
 		</form>
 		
-		<div class="login-footer">
+		<div class="register-footer">
 			<p>Already have an account? <a href="/login">Sign in</a></p>
 		</div>
 	</div>
 </main>
 
 <style>
-	/* Same styles as login page */
-	:global(body) {
-		background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+	/* Only apply these styles to the register page */
+	.register-container {
+		/* background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%); */
 		color: #e0e0e0;
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 		margin: 0;
@@ -99,15 +105,18 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-	}
-
-	.login-container {
 		width: 100%;
 		max-width: 400px;
 		padding: 2rem;
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		margin: auto;
 	}
 
-	.login-card {
+	.register-card {
 		background: rgba(30, 30, 30, 0.9);
 		backdrop-filter: blur(20px);
 		border: 1px solid rgba(255, 255, 255, 0.1);
@@ -115,6 +124,7 @@
 		padding: 3rem;
 		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 		animation: slideIn 0.3s ease-out;
+		width: 100%;
 	}
 
 	@keyframes slideIn {
@@ -128,12 +138,12 @@
 		}
 	}
 
-	.login-header {
+	.register-header {
 		text-align: center;
 		margin-bottom: 2rem;
 	}
 
-	.login-header h1 {
+	.register-header h1 {
 		font-size: 2rem;
 		font-weight: 700;
 		margin: 0 0 0.5rem 0;
@@ -143,7 +153,7 @@
 		-webkit-text-fill-color: transparent;
 	}
 
-	.login-header p {
+	.register-header p {
 		color: rgba(255, 255, 255, 0.7);
 		margin: 0;
 		font-size: 1rem;
@@ -193,7 +203,38 @@
 		font-size: 0.9rem;
 	}
 
-	.login-btn {
+	.success-message {
+		background: rgba(0, 184, 148, 0.2);
+		border: 1px solid rgba(0, 184, 148, 0.4);
+		color: #00b894;
+		padding: 0.75rem;
+		border-radius: 8px;
+		margin-bottom: 1rem;
+		font-size: 0.9rem;
+		text-align: center;
+	}
+
+	.success-actions {
+		margin-top: 1rem;
+	}
+
+	.login-link {
+		display: inline-block;
+		padding: 0.75rem 1.5rem;
+		background: linear-gradient(135deg, #4ecdc4, #44a08d);
+		color: white;
+		text-decoration: none;
+		border-radius: 8px;
+		font-weight: 600;
+		transition: all 0.3s ease;
+	}
+
+	.login-link:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 8px 25px rgba(78, 205, 196, 0.4);
+	}
+
+	.register-btn {
 		width: 100%;
 		padding: 0.75rem;
 		border: none;
@@ -207,34 +248,34 @@
 		margin-bottom: 1.5rem;
 	}
 
-	.login-btn:hover:not(:disabled) {
+	.register-btn:hover:not(:disabled) {
 		transform: translateY(-2px);
 		box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
 	}
 
-	.login-btn:disabled {
+	.register-btn:disabled {
 		opacity: 0.6;
 		cursor: not-allowed;
 		transform: none;
 	}
 
-	.login-footer {
+	.register-footer {
 		text-align: center;
 	}
 
-	.login-footer p {
+	.register-footer p {
 		color: rgba(255, 255, 255, 0.6);
 		margin: 0;
 	}
 
-	.login-footer a {
+	.register-footer a {
 		color: #4ecdc4;
 		text-decoration: none;
 		font-weight: 500;
 		transition: color 0.3s ease;
 	}
 
-	.login-footer a:hover {
+	.register-footer a:hover {
 		color: #ff6b6b;
 	}
 </style>

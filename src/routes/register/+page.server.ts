@@ -45,7 +45,7 @@ export const actions: Actions = {
 
 		if (existingUser.length > 0) {
 			return fail(400, {
-				error: 'Username already exists',
+				error: 'Invalid username',
 				username,
 				email
 			});
@@ -61,16 +61,17 @@ export const actions: Actions = {
 
 			if (existingEmail.length > 0) {
 				return fail(400, {
-					error: 'Email already registered',
+					error: 'Invalid e-mail',
 					username,
 					email
 				});
 			}
 		}
 
+		// Create user - don't wrap redirect in try/catch
+		const userId = crypto.randomUUID();
+		
 		try {
-			// Create user
-			const userId = crypto.randomUUID();
 			const newUser = await db
 				.insert(user)
 				.values({
@@ -80,15 +81,18 @@ export const actions: Actions = {
 				})
 				.returning();
 
-			// Create session
-			const sessionToken = auth.generateSessionToken();
-			const session = await auth.createSession(sessionToken, newUser[0].id);
-			
-			auth.setSessionTokenCookie({ cookies } as any, sessionToken, session.expiresAt);
+			console.log('User created successfully:', newUser[0].username);
 
-			throw redirect(302, '/');
+			// Return success data in proper SvelteKit format
+			return {
+				success: true,
+				message: `Account created successfully! Welcome ${newUser[0].username}! You can now sign in.`,
+				username: newUser[0].username,
+				email: email
+			};
+
 		} catch (error) {
-			console.error('Registration error:', error);
+			console.error('Database error during registration:', error);
 			return fail(500, {
 				error: 'Failed to create account. Please try again.',
 				username,

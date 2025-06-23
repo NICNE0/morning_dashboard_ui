@@ -25,8 +25,7 @@ export const actions: Actions = {
 			});
 		}
 
-		// For this demo, we'll do simple username-based auth
-		// In production, you'd verify password hashes
+		// Find the user
 		const existingUser = await db
 			.select()
 			.from(user)
@@ -39,10 +38,29 @@ export const actions: Actions = {
 			});
 		}
 
-		// Create session
+		// Clear any existing session first
+		const existingSessionToken = cookies.get(auth.sessionCookieName);
+		if (existingSessionToken) {
+			try {
+				const { session } = await auth.validateSessionToken(existingSessionToken);
+				if (session) {
+					await auth.invalidateSession(session.id);
+					console.log('Invalidated existing session');
+				}
+			} catch (error) {
+				console.log('Error clearing existing session:', error);
+			}
+			// Always delete the cookie regardless
+			auth.deleteSessionTokenCookie({ cookies } as any);
+		}
+
+		// Create fresh session
 		const sessionToken = auth.generateSessionToken();
 		const session = await auth.createSession(sessionToken, existingUser[0].id);
 		
+		console.log('Created session for user:', existingUser[0].username, 'with token:', sessionToken);
+		
+		// Set the new session cookie
 		auth.setSessionTokenCookie({ cookies } as any, sessionToken, session.expiresAt);
 
 		throw redirect(302, '/');
