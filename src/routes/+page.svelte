@@ -616,110 +616,123 @@
 		</div>
 
 		<!-- Tag Filtering Section -->
-		{#if showTagFiltering}
-			<div class="tag-filtering-container">
-				<div class="tag-filtering-header">
-					<h3>🏷️ Advanced Tag Filtering</h3>
-					{#if tagFilters.length > 0}
-						<button class="clear-filters-btn" on:click={clearAllTagFilters}>Clear All</button>
-					{/if}
-				</div>
-				
-				<!-- Active Filters Display -->
-				{#if tagFilters.length > 0}
-					<div class="active-filters">
-						<div class="filter-chain">
-							{#each tagFilters as filter, index}
-								<div class="filter-item">
-									{#if index > 0}
-										<span class="filter-operator operator-{filter.operator.toLowerCase()}">
-											{filter.operator}
-										</span>
-									{/if}
-									<div class="filter-tag" class:exclude={filter.exclude}>
-										{#if filter.exclude}
-											<span class="exclude-indicator">NOT</span>
-										{/if}
-										<span class="tag-name">{filter.tag.name}</span>
-										<button class="remove-filter" on:click={() => removeTagFilter(filter.id)}>×</button>
-									</div>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
-				
-				<!-- Add New Filter -->
-				<div class="add-filter-section">
-					<div class="filter-controls">
-						<div class="tag-selector">
-							<select 
-								bind:value={selectedTagForFilter} 
-								class="tag-select"
-							>
-								<option value="">Select a tag...</option>
-								{#each availableTagsForFilter as tag}
-									<option value={tag.id.toString()}>{tag.name}</option>
-								{/each}
-							</select>
-						</div>
-						
-						{#if tagFilters.length > 0}
-							<div class="operator-selector">
-								<label class="radio-group">
-									<input type="radio" bind:group={nextOperator} value="AND" />
-									<span class="radio-label and-label">AND</span>
-								</label>
-								<label class="radio-group">
-									<input type="radio" bind:group={nextOperator} value="OR" />
-									<span class="radio-label or-label">OR</span>
-								</label>
-							</div>
-						{/if}
-						
-						<div class="exclude-option">
-							<label class="checkbox-group">
-								<input type="checkbox" bind:checked={excludeNext} />
-								<span class="checkbox-label">Exclude</span>
-							</label>
-						</div>
-						
-						<button 
-							class="add-filter-btn"
-							on:click={addTagFilter}
-							disabled={!selectedTagForFilter}
-						>
-							Add Filter
-						</button>
-					</div>
-					
-					{#if availableTagsForFilter.length === 0 && tags.length > 0}
-						<p class="no-more-tags">All available tags are already in use</p>
-					{/if}
-				</div>
-				
-				<!-- Filter Logic Explanation -->
-				{#if tagFilters.length > 0}
-					<div class="filter-explanation">
-						<strong>Filter Logic:</strong> 
-						<span class="logic-text">
-							Show bookmarks that 
-							{#each tagFilters as filter, index}
-								{#if index > 0}
-									<span class="logic-operator">{filter.operator.toLowerCase()}</span>
-								{/if}
-								{#if filter.exclude}
-									<span class="logic-exclude">do NOT have</span>
-								{:else}
-									<span class="logic-include">have</span>
-								{/if}
-								<span class="logic-tag">"{filter.tag.name}"</span>
-							{/each}
-						</span>
-					</div>
-				{/if}
-			</div>
-		{/if}
+    {#if showTagFiltering}
+      <div class="tag-filtering-container">
+        <!-- Close Button -->
+        <button 
+          class="tag-filtering-close" 
+          on:click={() => showTagFiltering = false}
+          title="Close tag filtering"
+          aria-label="Close tag filtering"
+          type="button"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 1L13 13M1 13L13 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+
+        <div class="tag-filtering-header">
+          <h3>🏷️ Advanced Tag Filtering</h3>
+          {#if tagFilters.length > 0}
+            <button class="clear-filters-btn" on:click={clearAllTagFilters}>Clear All</button>
+          {/if}
+        </div>
+        
+        <!-- Active Filters Display -->
+        {#if tagFilters.length > 0}
+          <div class="active-filters">
+            <div class="filter-chain">
+              {#each tagFilters as filter, index}
+                <div class="filter-item">
+                  {#if index > 0}
+                    <span class="filter-operator operator-{filter.operator.toLowerCase()}">
+                      {filter.operator}
+                    </span>
+                  {/if}
+                  <div class="filter-tag" class:exclude={filter.exclude}>
+                    {#if filter.exclude}
+                      <span class="exclude-indicator">NOT</span>
+                    {/if}
+                    <span class="tag-name">{filter.tag.name}</span>
+                    <button class="remove-filter" on:click={() => removeTagFilter(filter.id)}>×</button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+        
+        <!-- Add New Filter -->
+        <div class="add-filter-section">
+          <div class="filter-controls">
+            <div class="tag-selector">
+              <select 
+                bind:value={selectedTagForFilter} 
+                class="tag-select"
+              >
+                <option value="">Select a tag...</option>
+                {#each availableTagsForFilter as tag}
+                  <option value={tag.id.toString()}>{tag.name}</option>
+                {/each}
+              </select>
+            </div>
+            
+            {#if tagFilters.length > 0}
+              <div class="operator-selector">
+                <label class="radio-group">
+                  <input type="radio" bind:group={nextOperator} value="AND" />
+                  <span class="radio-label and-label">AND</span>
+                </label>
+                <label class="radio-group">
+                  <input type="radio" bind:group={nextOperator} value="OR" />
+                  <span class="radio-label or-label">OR</span>
+                </label>
+              </div>
+            {/if}
+            
+            <div class="exclude-option">
+              <label class="checkbox-group">
+                <input type="checkbox" bind:checked={excludeNext} />
+                <span class="checkbox-label">Exclude</span>
+              </label>
+            </div>
+            
+            <button 
+              class="add-filter-btn"
+              on:click={addTagFilter}
+              disabled={!selectedTagForFilter}
+            >
+              Add Filter
+            </button>
+          </div>
+          
+          {#if availableTagsForFilter.length === 0 && tags.length > 0}
+            <p class="no-more-tags">All available tags are already in use</p>
+          {/if}
+        </div>
+        
+        <!-- Filter Logic Explanation -->
+        {#if tagFilters.length > 0}
+          <div class="filter-explanation">
+            <strong>Filter Logic:</strong> 
+            <span class="logic-text">
+              Show bookmarks that 
+              {#each tagFilters as filter, index}
+                {#if index > 0}
+                  <span class="logic-operator">{filter.operator.toLowerCase()}</span>
+                {/if}
+                {#if filter.exclude}
+                  <span class="logic-exclude">do NOT have</span>
+                {:else}
+                  <span class="logic-include">have</span>
+                {/if}
+                <span class="logic-tag">"{filter.tag.name}"</span>
+              {/each}
+            </span>
+          </div>
+        {/if}
+      </div>
+    {/if}
 	</div>
 
 	<!-- Toast Notification -->
@@ -893,7 +906,7 @@
 			{#if loading}
 				<div class="loading">
 					<div class="spinner"></div>
-					<p>Loading your awesome bookmarks...</p>
+					<p>Loading...</p>
 				</div>
 			{:else if error}
 				<p class="error">❌ Error: {error}</p>
@@ -2193,6 +2206,7 @@
 
 	/* Tag Filtering Styles */
 	.tag-filtering-container {
+    position: relative;
 		background: rgba(25, 25, 35, 0.9);
 		backdrop-filter: blur(20px);
 		border: 1px solid rgba(155, 89, 182, 0.3);
@@ -2201,6 +2215,9 @@
 		margin-bottom: 2rem;
 		box-shadow: 0 10px 40px rgba(155, 89, 182, 0.2);
 		animation: slideIn 0.3s ease-out;
+    width: 55%;
+    justify-self: center;
+    margin-top: 20px;
 	}
 	
 	.tag-filtering-header {
@@ -2209,6 +2226,46 @@
 		align-items: center;
 		margin-bottom: 1.5rem;
 	}
+
+  .tag-filtering-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(155, 89, 182, 0.3);
+    background: rgba(25, 25, 35, 0.9);
+    backdrop-filter: blur(10px);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+    font-size: 0;
+  }
+
+  .tag-filtering-close:hover {
+    background: rgba(231, 76, 60, 0.2);
+    border-color: rgba(231, 76, 60, 0.5);
+    color: #e74c3c;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+  }
+
+  .tag-filtering-close:active {
+    transform: scale(0.95);
+  }
+
+  .tag-filtering-close svg {
+    transition: all 0.3s ease;
+  }
+
+  .tag-filtering-close:hover svg {
+    transform: rotate(90deg);
+  }
 	
 	.tag-filtering-header h3 {
 		margin: 0;
@@ -2349,6 +2406,7 @@
 		background: rgba(255, 255, 255, 0.05);
 		color: #fff;
 		font-size: 0.95rem;
+    background-color: #1a1a1ada;
 	}
 	
 	.tag-select:focus {
