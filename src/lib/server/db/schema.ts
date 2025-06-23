@@ -1,27 +1,65 @@
-import { pgTable, serial, integer, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, text, timestamp, unique } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-// Language table
+// User table - enhanced with more fields
+export const user = pgTable('user', {
+	id: text('id').primaryKey(),
+	username: text('username').notNull().unique(),
+	email: text('email').unique(),
+	age: integer('age'),
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+		.notNull()
+		.defaultNow()
+});
+
+// Session table
+export const session = pgTable('session', {
+	id: text('id').primaryKey(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull()
+});
+
+// Language table - can be shared across users OR user-specific
 export const language = pgTable('language', {
 	id: serial('id').primaryKey(),
-	name: text('name').notNull().unique(), 
-	shortName: text('short_name').notNull().unique()
-});
+	name: text('name').notNull(),
+	shortName: text('short_name').notNull(),
+	userId: text('user_id')
+		.references(() => user.id, { onDelete: 'cascade' }), // NULL = global language
+}, (table) => ({
+	// Ensure unique names per user (or globally if userId is null)
+	uniqueLanguagePerUser: unique().on(table.name, table.userId),
+	uniqueShortNamePerUser: unique().on(table.shortName, table.userId)
+}));
 
-// Tag table
+// Tag table - user-specific
 export const tag = pgTable('tag', {
 	id: serial('id').primaryKey(),
-	name: text('name').notNull().unique()
-});
+	name: text('name').notNull(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' })
+}, (table) => ({
+	// Ensure unique tag names per user
+	uniqueTagPerUser: unique().on(table.name, table.userId)
+}));
 
-// Category table
+// Category table - user-specific
 export const category = pgTable('category', {
 	id: serial('id').primaryKey(),
-	name: text('name').notNull().unique(),
-	description: text('description')
-});
+	name: text('name').notNull(),
+	description: text('description'),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' })
+}, (table) => ({
+	// Ensure unique category names per user
+	uniqueCategoryPerUser: unique().on(table.name, table.userId)
+}));
 
-// Site/Bookmark table
+// Site/Bookmark table - user-specific
 export const site = pgTable('site', {
 	id: serial('id').primaryKey(),
 	name: text('name').notNull(),
@@ -29,9 +67,12 @@ export const site = pgTable('site', {
 	url: text('url').notNull(),
 	categoryId: integer('category_id')
 		.notNull()
-		.references(() => category.id),
+		.references(() => category.id, { onDelete: 'cascade' }),
 	languageId: integer('language_id')
-		.references(() => language.id), 
+		.references(() => language.id, { onDelete: 'set null' }),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
 		.notNull()
 		.defaultNow()
@@ -49,16 +90,43 @@ export const siteToTag = pgTable('site_to_tag', {
 });
 
 // Define relationships
-export const languageRelations = relations(language, ({ many }) => ({
-	sites: many(site)
+export const userRelations = relations(user, ({ many, one }) => ({
+	sessions: many(session),
+	sites: many(site),
+	categories: many(category),
+	tags: many(tag),
+	languages: many(language)
 }));
 
-export const tagRelations = relations(tag, ({ many }) => ({
-	siteToTags: many(siteToTag)
+export const sessionRelations = relations(session, ({ one }) => ({
+	user: one(user, {
+		fields: [session.userId],
+		references: [user.id]
+	})
 }));
 
-export const categoryRelations = relations(category, ({ many }) => ({
-	sites: many(site)
+export const languageRelations = relations(language, ({ many, one }) => ({
+	sites: many(site),
+	user: one(user, {
+		fields: [language.userId],
+		references: [user.id]
+	})
+}));
+
+export const tagRelations = relations(tag, ({ many, one }) => ({
+	siteToTags: many(siteToTag),
+	user: one(user, {
+		fields: [tag.userId],
+		references: [user.id]
+	})
+}));
+
+export const categoryRelations = relations(category, ({ many, one }) => ({
+	sites: many(site),
+	user: one(user, {
+		fields: [category.userId],
+		references: [user.id]
+	})
 }));
 
 export const siteRelations = relations(site, ({ one, many }) => ({
@@ -69,6 +137,10 @@ export const siteRelations = relations(site, ({ one, many }) => ({
 	language: one(language, {
 		fields: [site.languageId],
 		references: [language.id]
+	}),
+	user: one(user, {
+		fields: [site.userId],
+		references: [user.id]
 	}),
 	siteToTags: many(siteToTag)
 }));
@@ -85,12 +157,16 @@ export const siteToTagRelations = relations(siteToTag, ({ one }) => ({
 }));
 
 // Type exports
+export type User = typeof user.$inferSelect;
+export type Session = typeof session.$inferSelect;
 export type Language = typeof language.$inferSelect;
 export type Tag = typeof tag.$inferSelect;
 export type Category = typeof category.$inferSelect;
 export type Site = typeof site.$inferSelect;
 export type SiteToTag = typeof siteToTag.$inferSelect;
 
+export type NewUser = typeof user.$inferInsert;
+export type NewSession = typeof session.$inferInsert;
 export type NewLanguage = typeof language.$inferInsert;
 export type NewTag = typeof tag.$inferInsert;
 export type NewCategory = typeof category.$inferInsert;
@@ -101,22 +177,13 @@ export type NewSiteToTag = typeof siteToTag.$inferInsert;
 export type SiteWithRelations = Site & {
 	category: Category;
 	language?: Language;
+	user: User;
 	tags: Tag[];
 };
 
-// Keep your existing user/session tables if you need them later
-export const user = pgTable('user', {
-	id: text('id').primaryKey(),
-	age: integer('age')
-});
-
-export const session = pgTable('session', {
-	id: text('id').primaryKey(),
-	userId: text('user_id')
-		.notNull()
-		.references(() => user.id),
-	expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull()
-});
-
-export type Session = typeof session.$inferSelect;
-export type User = typeof user.$inferSelect;
+export type UserWithData = User & {
+	sites: SiteWithRelations[];
+	categories: Category[];
+	tags: Tag[];
+	languages: Language[];
+};

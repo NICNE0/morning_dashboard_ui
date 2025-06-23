@@ -1196,14 +1196,14 @@
 	.main-layout > header {
 		max-width: 1400px;
 		margin: 0 auto;
-		padding: 3rem 2rem 0 2rem;
+		padding: 0 2rem 0 2rem;
 	}
 	
 	header {
 		display: flex;
 		flex-direction: column;
 		margin-bottom: 2rem;
-		padding: 2rem 0 0 0;
+		padding: 10rem 0 0 0;
 	}
 	
 	.divider {
@@ -1218,11 +1218,12 @@
 		position: sticky;
 		top: 0;
 		z-index: 100;
-		background: rgba(15, 15, 15, 0.95);
+		/* background: rgba(255, 255, 255, 0.1); */
 		backdrop-filter: blur(20px);
 		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 		padding: 1rem 2rem;
 		margin-bottom: 2rem;
+		margin-top: 1rem;
 	}
 
 	.sticky-search-container .search-actions-container {
