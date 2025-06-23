@@ -344,49 +344,52 @@
 	}
 	
 	async function addTag(tagName: string, isEdit = false) {
-		const trimmedName = tagName.trim().toLowerCase();
-		if (!trimmedName) return;
-		
-		// Check if tag already exists
-		let existingTag = tags.find(tag => tag.name.toLowerCase() === trimmedName);
-		
-		if (!existingTag) {
-			// Create new tag
-			try {
-				const response = await fetch('/api/tags', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ name: trimmedName })
-				});
-				
-				if (response.ok) {
-					existingTag = await response.json();
-					tags = [...tags, existingTag];
-				} else {
-					throw new Error('Failed to create tag');
-				}
-			} catch (err) {
-				showToastNotification('Failed to create tag', 'error');
-				return;
-			}
-		}
-		
-		// Add to form
-		if (isEdit && editingBookmark) {
-			if (!editingBookmark.tags.some(t => t.id === existingTag.id)) {
-				editingBookmark.tags = [...editingBookmark.tags, existingTag];
-				editingBookmark = { ...editingBookmark };
-			}
-			editNewTagInput = '';
-			editShowTagSuggestions = false;
-		} else {
-			if (!siteForm.tags.includes(existingTag.id.toString())) {
-				siteForm.tags = [...siteForm.tags, existingTag.id.toString()];
-			}
-			newTagInput = '';
-			showTagSuggestions = false;
-		}
-	}
+    const trimmedName = tagName.trim().toLowerCase();
+    if (!trimmedName) return;
+    
+    // Check if tag already exists
+    let existingTag: Tag | undefined = tags.find(tag => tag.name.toLowerCase() === trimmedName);
+    
+    if (!existingTag) {
+      // Create new tag
+      try {
+        const response = await fetch('/api/tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: trimmedName })
+        });
+        
+        if (response.ok) {
+          existingTag = await response.json() as Tag;
+          tags = [...tags, existingTag];
+        } else {
+          throw new Error('Failed to create tag');
+        }
+      } catch (err) {
+        showToastNotification('Failed to create tag', 'error');
+        return;
+      }
+    }
+    
+    // Early return if still no tag (shouldn't happen, but TypeScript safety)
+    if (!existingTag) return;
+    
+    // Add to form - now existingTag is guaranteed to be Tag
+    if (isEdit && editingBookmark) {
+      if (!editingBookmark.tags.some(t => t.id === existingTag.id)) {
+        editingBookmark.tags = [...editingBookmark.tags, existingTag];
+        editingBookmark = { ...editingBookmark };
+      }
+      editNewTagInput = '';
+      editShowTagSuggestions = false;
+    } else {
+      if (!siteForm.tags.includes(existingTag.id.toString())) {
+        siteForm.tags = [...siteForm.tags, existingTag.id.toString()];
+      }
+      newTagInput = '';
+      showTagSuggestions = false;
+    }
+  }
 	
 	function removeTag(tagId: string, isEdit = false) {
 		if (isEdit && editingBookmark) {
@@ -812,64 +815,65 @@
 							class="form-input-search-style"
 						/>
 						
-						<!-- Tags Section -->
-						<div class="tags-section">
-							<label class="tags-label">Tags:</label>
-							
-							<!-- Selected Tags -->
-							{#if siteForm.tags.length > 0}
-								<div class="selected-tags">
-									{#each siteForm.tags as tagId}
-										<span class="tag-chip">
-											{getTagName(tagId)}
-											<button type="button" class="tag-remove" on:click={() => removeTag(tagId)}>×</button>
-										</span>
-									{/each}
-								</div>
-							{/if}
-							
-							<!-- Tag Input -->
-							<div class="tag-input-container">
-								<input
-									bind:value={newTagInput}
-									placeholder="Add tags..."
-									class="tag-input"
-									on:focus={() => showTagSuggestions = true}
-									on:blur={() => setTimeout(() => showTagSuggestions = false, 200)}
-									on:keydown={(e) => {
-										if (e.key === 'Enter') {
-											e.preventDefault();
-											addTag(newTagInput);
-										}
-									}}
-								/>
-								
-								{#if newTagInput.trim()}
-									<button 
-										type="button" 
-										class="add-tag-btn"
-										on:click={() => addTag(newTagInput)}
-									>
-										Add "{newTagInput}"
-									</button>
-								{/if}
-								
-								<!-- Tag Suggestions -->
-								{#if showTagSuggestions && filteredTags.length > 0}
-									<div class="tag-suggestions">
-										{#each filteredTags as tag}
-											<button 
-												type="button" 
-												class="tag-suggestion"
-												on:click={() => addTag(tag.name)}
-											>
-												{tag.name}
-											</button>
-										{/each}
-									</div>
-								{/if}
-							</div>
-						</div>
+						<!-- Edit Tags Section -->
+            <div class="tags-section">
+              <label for="edit-tag-input" class="tags-label">Tags:</label>
+              
+              <!-- Selected Tags -->
+              {#if editingBookmark && editingBookmark.tags.length > 0}
+                <div class="selected-tags">
+                  {#each editingBookmark.tags as tag}
+                    <span class="tag-chip">
+                      {tag.name}
+                      <button type="button" class="tag-remove" on:click={() => removeTag(tag.id.toString(), true)}>×</button>
+                    </span>
+                  {/each}
+                </div>
+              {/if}
+              
+              <!-- Tag Input -->
+              <div class="tag-input-container">
+                <input
+                  id="edit-tag-input"
+                  bind:value={editNewTagInput}
+                  placeholder="Add tags..."
+                  class="tag-input"
+                  on:focus={() => editShowTagSuggestions = true}
+                  on:blur={() => setTimeout(() => editShowTagSuggestions = false, 200)}
+                  on:keydown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addTag(editNewTagInput, true);
+                    }
+                  }}
+                />
+                
+                {#if editNewTagInput.trim()}
+                  <button 
+                    type="button" 
+                    class="add-tag-btn"
+                    on:click={() => addTag(editNewTagInput, true)}
+                  >
+                    Add "{editNewTagInput}"
+                  </button>
+                {/if}
+                
+                <!-- Tag Suggestions -->
+                {#if editShowTagSuggestions && editFilteredTags.length > 0}
+                  <div class="tag-suggestions">
+                    {#each editFilteredTags as tag}
+                      <button 
+                        type="button" 
+                        class="tag-suggestion"
+                        on:click={() => addTag(tag.name, true)}
+                      >
+                        {tag.name}
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            </div>
 						
 						<div class="form-actions">
 							<button type="submit" disabled={submitting || !siteForm.name.trim() || !siteForm.url.trim() || !siteForm.categoryId}>
