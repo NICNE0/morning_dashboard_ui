@@ -1048,116 +1048,119 @@
 	</div>
 
 	<!-- Modal Edit Form -->
-	{#if showEditForm && editingBookmark}
-		<div class="modal-overlay" on:click={cancelEdit}>
-			<div class="modal-content" on:click|stopPropagation>
-				<div class="modal-header">
-					<h3>✏️ Edit Bookmark</h3>
-					<button class="modal-close" on:click={cancelEdit}>✕</button>
-				</div>
-				<form on:submit|preventDefault={updateBookmark} class="modal-form">
-					<input
-						bind:value={editingBookmark.name}
-						placeholder="Site name"
-						class="form-input-search-style"
-						required
-					/>
-					<input
-						bind:value={editingBookmark.url}
-						placeholder="URL (https://example.com)"
-						type="url"
-						class="form-input-search-style"
-						required
-					/>
-					<select bind:value={editingBookmark.categoryId} class="form-input-search-style" required>
-						<option value="">Select a category</option>
-						{#each categories as category}
-							<option value={category.id}>{category.name}</option>
-						{/each}
-					</select>
-					
-					<select bind:value={editingBookmark.languageId} class="form-input-search-style">
-						<option value="">Select a language (optional)</option>
-						{#each languages as language}
-							<option value={language.id}>{language.name} ({language.shortName})</option>
-						{/each}
-					</select>
-					
-					<input
-						bind:value={editingBookmark.description}
-						placeholder="Description (optional)"
-						class="form-input-search-style"
-					/>
-					
-					<!-- Edit Tags Section -->
-					<div class="tags-section">
-						<label class="tags-label">Tags:</label>
-						
-						<!-- Selected Tags -->
-						{#if editingBookmark.tags.length > 0}
-							<div class="selected-tags">
-								{#each editingBookmark.tags as tag}
-									<span class="tag-chip">
-										{tag.name}
-										<button type="button" class="tag-remove" on:click={() => removeTag(tag.id.toString(), true)}>×</button>
-									</span>
-								{/each}
-							</div>
-						{/if}
-						
-						<!-- Tag Input -->
-						<div class="tag-input-container">
-							<input
-								bind:value={editNewTagInput}
-								placeholder="Add tags..."
-								class="tag-input"
-								on:focus={() => editShowTagSuggestions = true}
-								on:blur={() => setTimeout(() => editShowTagSuggestions = false, 200)}
-								on:keydown={(e) => {
-									if (e.key === 'Enter') {
-										e.preventDefault();
-										addTag(editNewTagInput, true);
-									}
-								}}
-							/>
-							
-							{#if editNewTagInput.trim()}
-								<button 
-									type="button" 
-									class="add-tag-btn"
-									on:click={() => addTag(editNewTagInput, true)}
-								>
-									Add "{editNewTagInput}"
-								</button>
-							{/if}
-							
-							<!-- Tag Suggestions -->
-							{#if editShowTagSuggestions && editFilteredTags.length > 0}
-								<div class="tag-suggestions">
-									{#each editFilteredTags as tag}
-										<button 
-											type="button" 
-											class="tag-suggestion"
-											on:click={() => addTag(tag.name, true)}
-										>
-											{tag.name}
-										</button>
-									{/each}
-								</div>
-							{/if}
-						</div>
-					</div>
-					
-					<div class="modal-actions">
-						<button type="submit" disabled={submitting || !editingBookmark.name.trim() || !editingBookmark.url.trim()} class="btn btn-primary">
-							{submitting ? 'Updating...' : 'Update Bookmark'}
-						</button>
-						<button type="button" on:click={cancelEdit} class="btn btn-secondary">Cancel</button>
-					</div>
-				</form>
-			</div>
-		</div>
-	{/if}
+  {#if showEditForm && editingBookmark}
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="modal-overlay" on:click={cancelEdit}>
+      <div class="modal-content" on:click|stopPropagation>
+        <div class="modal-header">
+          <h3>✏️ Edit Bookmark</h3>
+          <button class="modal-close" on:click={cancelEdit}>✕</button>
+        </div>
+        <form on:submit|preventDefault={updateBookmark} class="modal-form">
+          <input
+            bind:value={editingBookmark.name}
+            placeholder="Site name"
+            class="form-input-search-style"
+            required
+          />
+          <input
+            bind:value={editingBookmark.url}
+            placeholder="URL (https://example.com)"
+            type="url"
+            class="form-input-search-style"
+            required
+          />
+          <select bind:value={editingBookmark.categoryId} class="form-input-search-style" required>
+            <option value="">Select a category</option>
+            {#each categories as category}
+              <option value={category.id}>{category.name}</option>
+            {/each}
+          </select>
+          
+          <select bind:value={editingBookmark.languageId} class="form-input-search-style">
+            <option value="">Select a language (optional)</option>
+            {#each languages as language}
+              <option value={language.id}>{language.name} ({language.shortName})</option>
+            {/each}
+          </select>
+          
+          <input
+            bind:value={editingBookmark.description}
+            placeholder="Description (optional)"
+            class="form-input-search-style"
+          />
+          
+          <!-- Edit Tags Section -->
+          <div class="tags-section">
+            <label for="edit-tag-input" class="tags-label">Tags:</label>
+            
+            <!-- Selected Tags -->
+            {#if editingBookmark && editingBookmark.tags.length > 0}
+              <div class="selected-tags">
+                {#each editingBookmark.tags as tag}
+                  <span class="tag-chip">
+                    {tag.name}
+                    <button type="button" class="tag-remove" on:click={() => removeTag(tag.id.toString(), true)}>×</button>
+                  </span>
+                {/each}
+              </div>
+            {/if}
+            
+            <!-- Tag Input -->
+            <div class="tag-input-container">
+              <input
+                id="edit-tag-input"
+                bind:value={editNewTagInput}
+                placeholder="Add tags..."
+                class="tag-input"
+                on:focus={() => editShowTagSuggestions = true}
+                on:blur={() => setTimeout(() => editShowTagSuggestions = false, 200)}
+                on:keydown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addTag(editNewTagInput, true);
+                  }
+                }}
+              />
+              
+              {#if editNewTagInput.trim()}
+                <button 
+                  type="button" 
+                  class="add-tag-btn"
+                  on:click={() => addTag(editNewTagInput, true)}
+                >
+                  Add "{editNewTagInput}"
+                </button>
+              {/if}
+              
+              <!-- Tag Suggestions -->
+              {#if editShowTagSuggestions && editFilteredTags.length > 0}
+                <div class="tag-suggestions">
+                  {#each editFilteredTags as tag}
+                    <button 
+                      type="button" 
+                      class="tag-suggestion"
+                      on:click={() => addTag(tag.name, true)}
+                    >
+                      {tag.name}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          </div>
+          
+          <div class="modal-actions">
+            <button type="submit" disabled={submitting || !editingBookmark.name.trim() || !editingBookmark.url.trim()} class="btn btn-primary">
+              {submitting ? 'Updating...' : 'Update Bookmark'}
+            </button>
+            <button type="button" on:click={cancelEdit} class="btn btn-secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {/if}
 </main>
 
 <style>
