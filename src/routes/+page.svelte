@@ -101,12 +101,12 @@
 	let editShowTagSuggestions = false;
 	let editFilteredTags: Tag[] = [];
 
-  function scrollToTop() {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  }
+	function scrollToTop() {
+		window.scrollTo({
+			top: 0,
+			behavior: 'smooth'
+		});
+	}
 	
 	function scrollToCategory(categoryName: string) {
 		// Toggle the category if it's collapsed
@@ -428,11 +428,11 @@
 			languages = await languagesResponse.json();
 			tags = await tagsResponse.json();
 			
-			// Initialize collapsed state - collapse all except first two categories
+			// Initialize collapsed state - EXPAND ALL CATEGORIES by default
 			const categoryNames = Object.keys(bookmarksByCategory);
 			collapsedCategories = {};
-			categoryNames.forEach((name, index) => {
-				collapsedCategories[name] = false; // Collapse categories after the first two
+			categoryNames.forEach((name) => {
+				collapsedCategories[name] = false; // All categories expanded
 			});
 			
 			// Initialize filtered bookmarks and available tags
@@ -582,7 +582,6 @@
 <main class="main-layout">
 	<header>
 		<h1><span class="title-icon">📚</span> <span class="title-text">Bookmark Manager</span></h1>
-		<div class="divider"></div>
 	</header>
 
 	<!-- Sticky Search and Actions Bar -->
@@ -757,11 +756,13 @@
 						<input
 							bind:value={categoryForm.name}
 							placeholder="Category name"
+							class="form-input-search-style"
 							required
 						/>
 						<input
 							bind:value={categoryForm.description}
 							placeholder="Description (optional)"
+							class="form-input-search-style"
 						/>
 						<div class="form-actions">
 							<button type="submit" disabled={submitting || !categoryForm.name.trim()}>
@@ -781,22 +782,24 @@
 						<input
 							bind:value={siteForm.name}
 							placeholder="Site name"
+							class="form-input-search-style"
 							required
 						/>
 						<input
 							bind:value={siteForm.url}
 							placeholder="URL (https://example.com)"
 							type="url"
+							class="form-input-search-style"
 							required
 						/>
-						<select bind:value={siteForm.categoryId} required>
+						<select bind:value={siteForm.categoryId} class="form-input-search-style" required>
 							<option value="">Select a category</option>
 							{#each categories as category}
 								<option value={category.id}>{category.name}</option>
 							{/each}
 						</select>
 						
-						<select bind:value={siteForm.languageId}>
+						<select bind:value={siteForm.languageId} class="form-input-search-style">
 							<option value="">Select a language (optional)</option>
 							{#each languages as language}
 								<option value={language.id}>{language.name} ({language.shortName})</option>
@@ -806,6 +809,7 @@
 						<input
 							bind:value={siteForm.description}
 							placeholder="Description (optional)"
+							class="form-input-search-style"
 						/>
 						
 						<!-- Tags Section -->
@@ -1051,22 +1055,24 @@
 					<input
 						bind:value={editingBookmark.name}
 						placeholder="Site name"
+						class="form-input-search-style"
 						required
 					/>
 					<input
 						bind:value={editingBookmark.url}
 						placeholder="URL (https://example.com)"
 						type="url"
+						class="form-input-search-style"
 						required
 					/>
-					<select bind:value={editingBookmark.categoryId} required>
+					<select bind:value={editingBookmark.categoryId} class="form-input-search-style" required>
 						<option value="">Select a category</option>
 						{#each categories as category}
 							<option value={category.id}>{category.name}</option>
 						{/each}
 					</select>
 					
-					<select bind:value={editingBookmark.languageId}>
+					<select bind:value={editingBookmark.languageId} class="form-input-search-style">
 						<option value="">Select a language (optional)</option>
 						{#each languages as language}
 							<option value={language.id}>{language.name} ({language.shortName})</option>
@@ -1076,6 +1082,7 @@
 					<input
 						bind:value={editingBookmark.description}
 						placeholder="Description (optional)"
+						class="form-input-search-style"
 					/>
 					
 					<!-- Edit Tags Section -->
@@ -1221,9 +1228,7 @@
 		height: fit-content;
 		max-height: calc(100vh - 140px);
 		overflow-y: auto;
-		/* background: rgba(255, 255, 255, 0); */
 		backdrop-filter: blur(20px);
-		/* border: 1px solid rgba(0, 0, 0, 0.1); */
 		border-radius: 8px;
 		padding: 1.5rem;
 	}
@@ -1231,7 +1236,7 @@
 	.sidebar-header {
 		margin-bottom: 1rem;
 		padding-bottom: 0.5rem;
-		border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 	}
 
 	.sidebar-header h3 {
@@ -1250,7 +1255,7 @@
 	.category-nav-link {
 		display: block;
 		padding: 0.5rem 0;
-		color:white;
+		color: white;
 		text-decoration: none;
 		font-size: 0.9rem;
 		border-left: 3px solid transparent;
@@ -1269,6 +1274,45 @@
 	.main-content {
 		flex: 1;
 		min-width: 0;
+	}
+
+	/* Form inputs that match search bar styling */
+	.form-input-search-style {
+		width: 100%;
+		padding: 0.5rem 1rem;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 12px;
+		font-size: 0.85rem;
+		background: rgba(30, 30, 30, 0.8);
+		color: #fff;
+		backdrop-filter: blur(20px);
+		transition: all 0.3s ease;
+		appearance: none;
+		background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%23fff'%3E%3Cpolygon points='0,0 20,0 10,10'/%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 0.7rem center;
+		background-size: 10px;
+	}
+
+	.form-input-search-style:focus {
+		outline: none;
+		border-color: #4ecdc4;
+		box-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
+		transform: scale(1.02);
+	}
+
+	.form-input-search-style::placeholder {
+		color: rgba(255, 255, 255, 0.5);
+	}
+
+	.form-input-search-style option {
+		background: #1a1a1a;
+		color: #fff;
+	}
+
+	/* Remove dropdown arrow for input fields */
+	input.form-input-search-style {
+		background-image: none;
 	}
 
 	/* Modal Styles */
@@ -1657,35 +1701,6 @@
 		gap: 1.5rem;
 	}
 	
-	.form-container input,
-	.form-container select {
-		padding: 1rem 1.5rem;
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		border-radius: 12px;
-		font-size: 1.1rem;
-		background: rgba(255, 255, 255, 0.05);
-		color: #fff;
-		transition: all 0.3s ease;
-		backdrop-filter: blur(10px);
-	}
-	
-	.form-container input:focus,
-	.form-container select:focus {
-		outline: none;
-		border-color: #4ecdc4;
-		box-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
-		transform: scale(1.02);
-	}
-	
-	.form-container input::placeholder {
-		color: rgba(255, 255, 255, 0.5);
-	}
-	
-	.form-container select option {
-		background: #1a1a1a;
-		color: #fff;
-	}
-	
 	.form-actions {
 		display: flex;
 		gap: 1.5rem;
@@ -1693,12 +1708,12 @@
 	}
 	
 	.form-actions button {
-		padding: 1rem 2rem;
+		padding: 1rem 1.5rem;
 		border: none;
 		border-radius: 12px;
 		cursor: pointer;
 		font-weight: 600;
-		font-size: 1.1rem;
+		font-size: 0.8rem;
 		transition: all 0.3s ease;
 	}
 	
@@ -2071,7 +2086,7 @@
 
 	.tag-chip {
 		background-color: #4ecdc4;
-		color: #fff;
+		color: #ffffff;
 		padding: 0.3rem 0.7rem;
 		border-radius: 12px;
 		display: inline-flex;
@@ -2089,6 +2104,7 @@
 	}
 
 	.tag-input-container {
+    padding-top: 5px;
 		position: relative;
 	}
 
@@ -2149,32 +2165,6 @@
 
 	.add-tag-btn:hover {
 		background-color: rgba(78, 205, 196, 1);
-	}
-
-	/* Language Dropdown Styles */
-	select {
-		width: 100%;
-		padding: 0.7rem 1rem;
-		border-radius: 8px;
-		border: 1px solid rgba(255,255,255,0.2);
-		background-color: rgba(255,255,255,0.05);
-		color: #fff;
-		appearance: none;
-		background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%23fff'%3E%3Cpolygon points='0,0 20,0 10,10'/%3E%3C/svg%3E");
-		background-repeat: no-repeat;
-		background-position: right 0.7rem center;
-		background-size: 10px;
-	}
-
-	select:focus {
-		outline: none;
-		border-color: #4ecdc4;
-		box-shadow: 0 0 5px rgba(78,205,196,0.3);
-	}
-
-	option {
-		background-color: #1a1a1a;
-		color: #fff;
 	}
 
 	.language-badge {
